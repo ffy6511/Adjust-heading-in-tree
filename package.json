@@ -1,9 +1,9 @@
 {
-  "name": "heading-navigator",
-  "displayName": "Heading Navigator",
-  "description": "Visual navigator for Markdown and Typst headings.",
+  "name": "adjust-heading-in-tree",
+  "displayName": "Adjust Heading in Tree",
+  "description": "Visual navigation and adjustment for Markdown and Typst headings.",
   "version": "0.0.1",
-  "publisher": "your-name",
+  "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
   },
