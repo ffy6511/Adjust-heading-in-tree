@@ -15,7 +15,7 @@
     "onCommand:headingNavigator.shiftUp",
     "onCommand:headingNavigator.shiftDown",
     "onCommand:headingNavigator.reveal",
-    "onCommand:headingNavigator.collapseToLevel",
+    "onCommand:headingNavigator.adjustTreeLevel",
     "onView:headingNavigator.headingTree"
   ],
   "main": "./dist/extension.js",
@@ -57,19 +57,22 @@
       },
       {
         "command": "headingNavigator.shiftUp",
-        "title": "Shift Selected Headings Up"
+        "title": "Shift Selected Headings Up",
+        "icon": "$(arrow-up)"
       },
       {
         "command": "headingNavigator.shiftDown",
-        "title": "Shift Selected Headings Down"
+        "title": "Shift Selected Headings Down",
+        "icon": "$(arrow-down)"
       },
       {
         "command": "headingNavigator.reveal",
         "title": "Reveal Heading In Editor"
       },
       {
-        "command": "headingNavigator.collapseToLevel",
-        "title": "Collapse Headings To Level"
+        "command": "headingNavigator.adjustTreeLevel",
+        "title": "Adjust Heading Tree Level",
+        "icon": "$(list-tree)"
       }
     ],
     "keybindings": [
@@ -91,11 +94,11 @@
           "when": "view == headingNavigator.headingTree",
           "group": "navigation@2"
         },
-        {
-          "command": "headingNavigator.collapseToLevel",
-          "when": "view == headingNavigator.headingTree",
-          "group": "navigation@3"
-        }
+      {
+        "command": "headingNavigator.adjustTreeLevel",
+        "when": "view == headingNavigator.headingTree",
+        "group": "navigation@3"
+      }
       ],
       "view/item/context": [
         {

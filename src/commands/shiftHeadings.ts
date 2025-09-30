@@ -10,49 +10,57 @@ export function registerShiftCommands(
   provider: HeadingProvider,
   treeView: vscode.TreeView<HeadingTreeItem>
 ): vscode.Disposable {
-  const shiftUp = vscode.commands.registerCommand('headingNavigator.shiftUp', async (item?: HeadingTreeItem) => {
-    const context = resolveActiveSelection();
-    if (!context) {
-      return;
+  const shiftUp = vscode.commands.registerCommand(
+    'headingNavigator.shiftUp',
+    async (item?: HeadingTreeItem, selectedItems?: readonly HeadingTreeItem[]) => {
+      const context = resolveActiveSelection();
+      if (!context) {
+        return;
+      }
+
+      const targets = resolveHeadingTargets(provider, treeView, item, selectedItems, context);
+      if (targets.length === 0) {
+        void vscode.window.showInformationMessage('No headings to shift in the current selection.');
+        return;
+      }
+
+      const applied = await shiftHeadingsByOffset(context.editor, targets, -1);
+      if (!applied) {
+        void vscode.window.showInformationMessage('No headings to shift in the current selection.');
+        return;
+      }
+
+      provider.refresh(context.editor.document);
+      provider.clearCheckedNodes();
+      void vscode.window.showInformationMessage('Shifted headings up by one level.');
     }
+  );
 
-    const targets = resolveHeadingTargets(provider, treeView, item, context);
-    if (targets.length === 0) {
-      void vscode.window.showInformationMessage('No headings to shift in the current selection.');
-      return;
+  const shiftDown = vscode.commands.registerCommand(
+    'headingNavigator.shiftDown',
+    async (item?: HeadingTreeItem, selectedItems?: readonly HeadingTreeItem[]) => {
+      const context = resolveActiveSelection();
+      if (!context) {
+        return;
+      }
+
+      const targets = resolveHeadingTargets(provider, treeView, item, selectedItems, context);
+      if (targets.length === 0) {
+        void vscode.window.showInformationMessage('No headings to shift in the current selection.');
+        return;
+      }
+
+      const applied = await shiftHeadingsByOffset(context.editor, targets, 1);
+      if (!applied) {
+        void vscode.window.showInformationMessage('No headings to shift in the current selection.');
+        return;
+      }
+
+      provider.refresh(context.editor.document);
+      provider.clearCheckedNodes();
+      void vscode.window.showInformationMessage('Shifted headings down by one level.');
     }
-
-    const applied = await shiftHeadingsByOffset(context.editor, targets, -1);
-    if (!applied) {
-      void vscode.window.showInformationMessage('No headings to shift in the current selection.');
-      return;
-    }
-
-    provider.refresh(context.editor.document);
-    void vscode.window.showInformationMessage('Shifted headings up by one level.');
-  });
-
-  const shiftDown = vscode.commands.registerCommand('headingNavigator.shiftDown', async (item?: HeadingTreeItem) => {
-    const context = resolveActiveSelection();
-    if (!context) {
-      return;
-    }
-
-    const targets = resolveHeadingTargets(provider, treeView, item, context);
-    if (targets.length === 0) {
-      void vscode.window.showInformationMessage('No headings to shift in the current selection.');
-      return;
-    }
-
-    const applied = await shiftHeadingsByOffset(context.editor, targets, 1);
-    if (!applied) {
-      void vscode.window.showInformationMessage('No headings to shift in the current selection.');
-      return;
-    }
-
-    provider.refresh(context.editor.document);
-    void vscode.window.showInformationMessage('Shifted headings down by one level.');
-  });
+  );
 
   return vscode.Disposable.from(shiftUp, shiftDown);
 }
@@ -69,7 +77,7 @@ function resolveActiveSelection(): SelectionContext | undefined {
     return undefined;
   }
 
-  // 在提供树形选择之前，默认使用当前选区或光标所在行。
+  // 默认使用当前选区或光标所在行，作为无复选框选择时的兜底范围。
   const range = editor.selection.isEmpty
     ? editor.document.lineAt(editor.selection.active.line).range
     : editor.selection;
@@ -159,16 +167,24 @@ function resolveHeadingTargets(
   provider: HeadingProvider,
   treeView: vscode.TreeView<HeadingTreeItem>,
   item: HeadingTreeItem | undefined,
+  selectedItems: readonly HeadingTreeItem[] | undefined,
   context: SelectionContext
 ): HeadingTarget[] {
   if (item) {
     return collectFromNodes([item.node]);
   }
 
+  if (selectedItems && selectedItems.length > 0) {
+    return collectFromNodes(selectedItems.map((treeItem) => treeItem.node));
+  }
+
+  if (provider.hasCheckedNodes()) {
+    return collectFromNodes(provider.getCheckedNodes());
+  }
+
   const selection = treeView.selection;
   if (selection.length > 0) {
-    const nodes = selection.map((treeItem) => treeItem.node);
-    return collectFromNodes(nodes);
+    return collectFromNodes(selection.map((treeItem) => treeItem.node));
   }
 
   return collectFromDocumentRange(context.editor, context.range);
