@@ -1,0 +1,78 @@
+{
+  "name": "heading-navigator",
+  "displayName": "Heading Navigator",
+  "description": "Visual navigator for Markdown and Typst headings.",
+  "version": "0.0.1",
+  "publisher": "your-name",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:headingNavigator.toggle",
+    "onCommand:headingNavigator.shiftUp",
+    "onCommand:headingNavigator.shiftDown",
+    "onCommand:headingNavigator.reveal",
+    "onView:headingNavigator.headingTree"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "echo 'no lint task yet'",
+    "test": "echo 'no tests yet'"
+  },
+  "devDependencies": {
+    "@types/node": "^18.17.0",
+    "@types/vscode": "^1.85.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.2.2"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "headingNavigator",
+          "title": "Headings",
+          "icon": "resources/icons/heading.svg"
+        }
+      ]
+    },
+    "views": {
+      "headingNavigator": [
+        {
+          "id": "headingNavigator.headingTree",
+          "name": "Heading Navigator"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "headingNavigator.toggle",
+        "title": "Toggle Heading Navigator"
+      },
+      {
+        "command": "headingNavigator.shiftUp",
+        "title": "Shift Headings Up"
+      },
+      {
+        "command": "headingNavigator.shiftDown",
+        "title": "Shift Headings Down"
+      },
+      {
+        "command": "headingNavigator.reveal",
+        "title": "Reveal Heading In Editor"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "headingNavigator.toggle",
+        "key": "ctrl+shift+h",
+        "when": "editorTextFocus"
+      }
+    ]
+  }
+}

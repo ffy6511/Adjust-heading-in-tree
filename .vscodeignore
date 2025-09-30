@@ -1,0 +1,8 @@
+node_modules
+out
+src
+.vscode-test
+.vscode/
+.gitignore
+work_log.md
+initial_plan.md
