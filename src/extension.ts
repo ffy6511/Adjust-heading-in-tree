@@ -2,13 +2,15 @@ import * as vscode from 'vscode';
 import { HeadingProvider, HeadingTreeItem } from './providers/headingProvider';
 import { registerShiftCommands } from './commands/shiftHeadings';
 import { registerToggleCommand } from './commands/toggleView';
+import { registerCollapseCommand } from './commands/collapseLevel';
 
 export function activate(context: vscode.ExtensionContext): void {
   const headingProvider = new HeadingProvider();
 
   const treeView = vscode.window.createTreeView<HeadingTreeItem>('headingNavigator.headingTree', {
     treeDataProvider: headingProvider,
-    showCollapseAll: true
+    showCollapseAll: true,
+    canSelectMany: true
   });
 
   context.subscriptions.push(treeView);
@@ -26,8 +28,9 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  context.subscriptions.push(registerShiftCommands(headingProvider));
+  context.subscriptions.push(registerShiftCommands(headingProvider, treeView));
   context.subscriptions.push(registerToggleCommand());
+  context.subscriptions.push(registerCollapseCommand(headingProvider));
 
   const revealDisposable = vscode.commands.registerCommand('headingNavigator.reveal', (range: vscode.Range) => {
     const editor = vscode.window.activeTextEditor;

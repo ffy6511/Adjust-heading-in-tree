@@ -5,6 +5,7 @@ export interface HeadingNode {
   id: string;
   label: string;
   level: number;
+  kind: HeadingMatch['kind'];
   range: vscode.Range;
   children: HeadingNode[];
 }
@@ -14,9 +15,10 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private readonly nodes: HeadingNode[] = [];
+  private expandedLevel: number | undefined;
 
   constructor() {
-    // Start with current editor if available.
+    // 如果当前编辑器已有文档，则立即解析一次。
     this.refresh();
   }
 
@@ -26,15 +28,15 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
 
   getChildren(element?: HeadingTreeItem): HeadingTreeItem[] {
     if (!element) {
-      return this.nodes.map((node) => new HeadingTreeItem(node));
+      return this.nodes.map((node) => this.createTreeItem(node));
     }
 
-    return element.node.children.map((node) => new HeadingTreeItem(node));
+    return element.node.children.map((node) => this.createTreeItem(node));
   }
 
   getParent?(element: HeadingTreeItem): HeadingTreeItem | null {
     const parent = findParent(this.nodes, element.node);
-    return parent ? new HeadingTreeItem(parent) : null;
+    return parent ? this.createTreeItem(parent) : null;
   }
 
   refresh(document?: vscode.TextDocument): void {
@@ -52,17 +54,50 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
     this.nodes.push(...tree);
     this._onDidChangeTreeData.fire();
   }
+
+  /**
+   * 设置导航树自动展开的最大层级（0 表示完全折叠）。
+   */
+  setExpandedLevel(level: number | undefined): void {
+    this.expandedLevel = level;
+    this._onDidChangeTreeData.fire();
+  }
+
+  /**
+   * 判断当前是否存在标题节点。
+   */
+  hasHeadings(): boolean {
+    return this.nodes.length > 0;
+  }
+
+  private createTreeItem(node: HeadingNode): HeadingTreeItem {
+    const collapsibleState = node.children.length === 0 ? vscode.TreeItemCollapsibleState.None : this.resolveCollapsibleState(node.level);
+    return new HeadingTreeItem(node, collapsibleState);
+  }
+
+  private resolveCollapsibleState(level: number): vscode.TreeItemCollapsibleState {
+    if (this.expandedLevel === undefined) {
+      return vscode.TreeItemCollapsibleState.Collapsed;
+    }
+
+    if (this.expandedLevel === 0) {
+      return vscode.TreeItemCollapsibleState.Collapsed;
+    }
+
+    return level < this.expandedLevel ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+  }
 }
 
 export class HeadingTreeItem extends vscode.TreeItem {
-  constructor(readonly node: HeadingNode) {
-    super(node.label, node.children.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+  constructor(readonly node: HeadingNode, collapsibleState: vscode.TreeItemCollapsibleState) {
+    super(node.label, collapsibleState);
     this.description = `Level ${node.level}`;
     this.command = {
       command: 'headingNavigator.reveal',
       title: 'Reveal Heading',
       arguments: [node.range]
     };
+    this.contextValue = 'headingNavigator.heading';
     this.id = node.id;
   }
 }
@@ -76,6 +111,7 @@ function buildTree(matches: HeadingMatch[]): HeadingNode[] {
       id: `${match.line}-${index}`,
       label: match.text,
       level: match.level,
+      kind: match.kind,
       range: match.range,
       children: []
     };

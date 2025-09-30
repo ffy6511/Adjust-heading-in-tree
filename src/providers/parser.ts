@@ -1,6 +1,9 @@
 import { Position, Range } from 'vscode';
 
+export type HeadingKind = 'markdown' | 'typst';
+
 export interface HeadingMatch {
+  kind: HeadingKind;
   level: number;
   text: string;
   line: number;
@@ -23,14 +26,14 @@ export function parseHeadings(content: string): HeadingMatch[] {
 
     if (markdownResult) {
       const [, hashes, title] = markdownResult;
-      matches.push(makeMatch(lineNumber, hashes.length, title.trim(), line.length));
+      matches.push(makeMatch('markdown', lineNumber, hashes.length, title.trim(), line.length));
       continue;
     }
 
     const typstResult = parseTypstHeading(line);
     if (typstResult) {
       const { level, text } = typstResult;
-      matches.push(makeMatch(lineNumber, level, text, line.length));
+      matches.push(makeMatch('typst', lineNumber, level, text, line.length));
     }
   }
 
@@ -52,10 +55,11 @@ function parseTypstHeading(line: string): { level: number; text: string } | unde
   return { level, text };
 }
 
-function makeMatch(line: number, level: number, text: string, lineLength: number): HeadingMatch {
+function makeMatch(kind: HeadingKind, line: number, level: number, text: string, lineLength: number): HeadingMatch {
   const start = new Position(line, 0);
   const end = new Position(line, lineLength);
   return {
+    kind,
     level,
     text,
     line,

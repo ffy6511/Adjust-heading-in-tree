@@ -15,6 +15,7 @@
     "onCommand:headingNavigator.shiftUp",
     "onCommand:headingNavigator.shiftDown",
     "onCommand:headingNavigator.reveal",
+    "onCommand:headingNavigator.collapseToLevel",
     "onView:headingNavigator.headingTree"
   ],
   "main": "./dist/extension.js",
@@ -56,15 +57,19 @@
       },
       {
         "command": "headingNavigator.shiftUp",
-        "title": "Shift Headings Up"
+        "title": "Shift Selected Headings Up"
       },
       {
         "command": "headingNavigator.shiftDown",
-        "title": "Shift Headings Down"
+        "title": "Shift Selected Headings Down"
       },
       {
         "command": "headingNavigator.reveal",
         "title": "Reveal Heading In Editor"
+      },
+      {
+        "command": "headingNavigator.collapseToLevel",
+        "title": "Collapse Headings To Level"
       }
     ],
     "keybindings": [
@@ -73,6 +78,37 @@
         "key": "ctrl+shift+h",
         "when": "editorTextFocus"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "headingNavigator.shiftUp",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "headingNavigator.shiftDown",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "headingNavigator.collapseToLevel",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "headingNavigator.shiftUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.shiftDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "group": "inline@2"
+        }
+      ]
+    }
   }
 }
