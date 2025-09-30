@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { parseHeadings, HeadingMatch } from './parser';
 
 export interface HeadingNode {
@@ -11,7 +12,9 @@ export interface HeadingNode {
 }
 
 const MAX_LABEL_LENGTH = 40;
-const INDENT_UNIT = '   ';
+const LEVEL_ICON_DIR = path.join(__dirname, '..', '..', 'resources', 'icons', 'levels');
+
+const levelIconCache = new Map<string, { light: vscode.Uri; dark: vscode.Uri }>();
 
 export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
   private readonly _onDidChangeTreeData = new vscode.EventEmitter<HeadingNode | HeadingNode[] | undefined | void>();
@@ -192,7 +195,7 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     const isCurrent = node.id === this.currentHeadingId;
     const displayLabel = formatLabel(node);
     const isChecked = this.checkedIds.has(node.id);
-    return new HeadingTreeItem(node, collapsibleState, displayLabel, isChecked, isCurrent);
+    return new HeadingTreeItem(node, collapsibleState, displayLabel, isChecked, isCurrent, getLevelIcon(node.level, isCurrent));
   }
 
   private resolveCollapsibleState(level: number): vscode.TreeItemCollapsibleState {
@@ -270,10 +273,11 @@ class HeadingTreeItem extends vscode.TreeItem {
     collapsibleState: vscode.TreeItemCollapsibleState,
     label: string,
     checked: boolean,
-    isCurrent: boolean
+    isCurrent: boolean,
+    iconSet: { light: vscode.Uri; dark: vscode.Uri }
   ) {
     super(label, collapsibleState);
-    this.description = `Level ${node.level}${isCurrent ? ' • current' : ''}`;
+    this.description = undefined;
     this.command = {
       command: 'headingNavigator.reveal',
       title: 'Reveal Heading',
@@ -281,10 +285,15 @@ class HeadingTreeItem extends vscode.TreeItem {
     };
     this.contextValue = 'headingNavigator.heading';
     this.checkboxState = checked ? vscode.TreeItemCheckboxState.Checked : vscode.TreeItemCheckboxState.Unchecked;
-    this.iconPath = isCurrent
-      ? new vscode.ThemeIcon('record', new vscode.ThemeColor('charts.green'))
-      : new vscode.ThemeIcon('grabber');
-    this.tooltip = `${node.label}\nLevel: ${node.level}\nType: ${node.kind === 'markdown' ? 'Markdown' : 'Typst'}\n拖拽任意位置可重新排序。`;
+    this.iconPath = iconSet;
+    if (isCurrent) {
+      this.iconPath = {
+        light: iconSet.light,
+        dark: iconSet.dark
+      };
+      this.resourceUri = vscode.Uri.parse(`heading:${node.id}`);
+    }
+    this.tooltip = `${node.label}\nLevel: ${node.level}\nType: ${node.kind === 'markdown' ? 'Markdown' : 'Typst'}\nDrag anywhere on the row to reorder.`;
     this.id = node.id;
   }
 }
@@ -335,10 +344,8 @@ function findParent(haystack: HeadingNode[], target: HeadingNode): HeadingNode |
 }
 
 function formatLabel(node: HeadingNode): string {
-  const indent = node.level > 1 ? INDENT_UNIT.repeat(node.level - 1) : '';
   const base = node.label.trim() === '' ? '(Untitled)' : node.label;
-  const truncated = base.length > MAX_LABEL_LENGTH ? `${base.slice(0, MAX_LABEL_LENGTH - 1)}…` : base;
-  return `${indent}${truncated}`;
+  return base.length > MAX_LABEL_LENGTH ? `${base.slice(0, MAX_LABEL_LENGTH - 1)}…` : base;
 }
 
 function collectNodeIds(node: HeadingNode): string[] {
@@ -361,4 +368,20 @@ function flattenNodes(nodes: HeadingNode[], receiver: HeadingNode[]): void {
       flattenNodes(node.children, receiver);
     }
   }
+}
+
+function getLevelIcon(level: number, isCurrent: boolean): { light: vscode.Uri; dark: vscode.Uri } {
+  const clampedLevel = Math.max(1, Math.min(6, level));
+  const key = `${clampedLevel}-${isCurrent ? 'current' : 'default'}`;
+  const cached = levelIconCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const fileName = `level-${clampedLevel}${isCurrent ? '-current' : ''}.svg`;
+  const iconPath = path.join(LEVEL_ICON_DIR, fileName);
+  const uri = vscode.Uri.file(iconPath);
+  const iconSet = { light: uri, dark: uri };
+  levelIconCache.set(key, iconSet);
+  return iconSet;
 }
