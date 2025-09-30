@@ -1,117 +1,117 @@
 {
-  "name": "adjust-heading-in-tree",
-  "displayName": "Adjust Heading in Tree",
-  "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.0.1",
-  "publisher": "ffy6511",
-  "engines": {
-    "vscode": "^1.85.0"
-  },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onCommand:headingNavigator.toggle",
-    "onCommand:headingNavigator.shiftUp",
-    "onCommand:headingNavigator.shiftDown",
-    "onCommand:headingNavigator.reveal",
-    "onCommand:headingNavigator.adjustTreeLevel",
-    "onView:headingNavigator.headingTree"
-  ],
-  "main": "./dist/extension.js",
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "lint": "echo 'no lint task yet'",
-    "test": "echo 'no tests yet'"
-  },
-  "devDependencies": {
-    "@types/node": "^18.17.0",
-    "@types/vscode": "^1.85.0",
-    "tslib": "^2.6.2",
-    "typescript": "^5.2.2"
-  },
-  "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "headingNavigator",
-          "title": "Headings",
-          "icon": "resources/icons/heading.svg"
-        }
-      ]
+    "name": "adjust-heading-in-tree",
+    "displayName": "Adjust Heading in Tree",
+    "description": "Visual navigation and adjustment for Markdown and Typst headings.",
+    "version": "0.0.1",
+    "publisher": "ffy6511",
+    "engines": {
+        "vscode": "^1.85.0"
     },
-    "views": {
-      "headingNavigator": [
-        {
-          "id": "headingNavigator.headingTree",
-          "name": "Heading Navigator"
-        }
-      ]
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onCommand:headingNavigator.toggle",
+        "onCommand:headingNavigator.shiftUp",
+        "onCommand:headingNavigator.shiftDown",
+        "onCommand:headingNavigator.reveal",
+        "onCommand:headingNavigator.adjustTreeLevel",
+        "onView:headingNavigator.headingTree"
+    ],
+    "main": "./dist/extension.js",
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "lint": "echo 'no lint task yet'",
+        "test": "echo 'no tests yet'"
     },
-    "commands": [
-      {
-        "command": "headingNavigator.toggle",
-        "title": "Toggle Heading Navigator"
-      },
-      {
-        "command": "headingNavigator.shiftUp",
-        "title": "Shift Selected Headings Up",
-        "icon": "$(arrow-up)"
-      },
-      {
-        "command": "headingNavigator.shiftDown",
-        "title": "Shift Selected Headings Down",
-        "icon": "$(arrow-down)"
-      },
-      {
-        "command": "headingNavigator.reveal",
-        "title": "Reveal Heading In Editor"
-      },
-      {
-        "command": "headingNavigator.adjustTreeLevel",
-        "title": "Adjust Heading Tree Level",
-        "icon": "$(list-tree)"
-      }
-    ],
-    "keybindings": [
-      {
-        "command": "headingNavigator.toggle",
-        "key": "ctrl+shift+h",
-        "when": "editorTextFocus"
-      }
-    ],
-    "menus": {
-      "view/title": [
-        {
-          "command": "headingNavigator.shiftUp",
-          "when": "view == headingNavigator.headingTree",
-          "group": "navigation@1"
+    "devDependencies": {
+        "@types/node": "^18.17.0",
+        "@types/vscode": "^1.85.0",
+        "tslib": "^2.6.2",
+        "typescript": "^5.2.2"
+    },
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "headingNavigator",
+                    "title": "Headings",
+                    "icon": "resources/icons/heading.svg"
+                }
+            ]
         },
-        {
-          "command": "headingNavigator.shiftDown",
-          "when": "view == headingNavigator.headingTree",
-          "group": "navigation@2"
+        "views": {
+            "headingNavigator": [
+                {
+                    "id": "headingNavigator.headingTree",
+                    "name": "Heading Navigator"
+                }
+            ]
         },
-      {
-        "command": "headingNavigator.adjustTreeLevel",
-        "when": "view == headingNavigator.headingTree",
-        "group": "navigation@3"
-      }
-      ],
-      "view/item/context": [
-        {
-          "command": "headingNavigator.shiftUp",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
-          "group": "inline@1"
-        },
-        {
-          "command": "headingNavigator.shiftDown",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
-          "group": "inline@2"
+        "commands": [
+            {
+                "command": "headingNavigator.toggle",
+                "title": "Toggle Heading Navigator"
+            },
+            {
+                "command": "headingNavigator.shiftUp",
+                "title": "Shift Selected Headings Up",
+                "icon": "$(arrow-up)"
+            },
+            {
+                "command": "headingNavigator.shiftDown",
+                "title": "Shift Selected Headings Down",
+                "icon": "$(arrow-down)"
+            },
+            {
+                "command": "headingNavigator.reveal",
+                "title": "Reveal Heading In Editor"
+            },
+            {
+                "command": "headingNavigator.adjustTreeLevel",
+                "title": "Adjust Heading Tree Level",
+                "icon": "$(list-tree)"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "headingNavigator.toggle",
+                "key": "ctrl+shift+h",
+                "when": "editorTextFocus"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "headingNavigator.shiftUp",
+                    "when": "view == headingNavigator.headingTree",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "headingNavigator.shiftDown",
+                    "when": "view == headingNavigator.headingTree",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "headingNavigator.adjustTreeLevel",
+                    "when": "view == headingNavigator.headingTree",
+                    "group": "navigation@3"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "headingNavigator.shiftUp",
+                    "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "headingNavigator.shiftDown",
+                    "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+                    "group": "inline@2"
+                }
+            ]
         }
-      ]
     }
-  }
 }

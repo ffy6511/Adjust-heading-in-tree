@@ -11,37 +11,39 @@ export interface HeadingNode {
 }
 
 const MAX_LABEL_LENGTH = 40;
-const INDENT_UNIT = '\u2003'; // 额外缩进使用全角空格，确保在树视图中可见
+const INDENT_UNIT = '   ';
 
-export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<HeadingTreeItem | undefined | void>();
+export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
+  private readonly _onDidChangeTreeData = new vscode.EventEmitter<HeadingNode | HeadingNode[] | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private readonly nodes: HeadingNode[] = [];
   private readonly nodeIndex = new Map<string, HeadingNode>();
   private readonly checkedIds = new Set<string>();
+  private orderedNodes: HeadingNode[] = [];
   private expandedLevel: number | null | undefined;
+  private currentHeadingId: string | undefined;
 
   constructor() {
     // 如果当前编辑器已有文档，则立即解析一次。
     this.refresh();
   }
 
-  getTreeItem(element: HeadingTreeItem): vscode.TreeItem {
-    return element;
+  getTreeItem(element: HeadingNode): vscode.TreeItem {
+    return this.createTreeItem(element);
   }
 
-  getChildren(element?: HeadingTreeItem): HeadingTreeItem[] {
+  getChildren(element?: HeadingNode): HeadingNode[] {
     if (!element) {
-      return this.nodes.map((node) => this.createTreeItem(node));
+      return this.nodes;
     }
 
-    return element.node.children.map((node) => this.createTreeItem(node));
+    return element.children;
   }
 
-  getParent?(element: HeadingTreeItem): HeadingTreeItem | null {
-    const parent = findParent(this.nodes, element.node);
-    return parent ? this.createTreeItem(parent) : null;
+  getParent(element: HeadingNode): HeadingNode | null {
+    const parent = findParent(this.nodes, element);
+    return parent ?? null;
   }
 
   refresh(document?: vscode.TextDocument): void {
@@ -50,6 +52,7 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
     this.nodes.length = 0;
 
     if (!source) {
+      this.rebuildIndex();
       this._onDidChangeTreeData.fire();
       return;
     }
@@ -62,7 +65,7 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
   }
 
   /**
-   * 设置导航树自动展开的最大层级（0 表示完全折叠）。
+   * 设置导航树默认展开的最大层级（0 表示全部折叠，null 表示全部展开）。
    */
   setExpandedLevel(level: number | null | undefined): void {
     this.expandedLevel = level;
@@ -70,21 +73,21 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
   }
 
   /**
-   * 判断当前是否存在标题节点。
+   * 判断是否存在标题。
    */
   hasHeadings(): boolean {
     return this.nodes.length > 0;
   }
 
   /**
-   * 是否存在被选中的标题复选框。
+   * 判断是否存在通过复选框选中的节点。
    */
   hasCheckedNodes(): boolean {
     return this.checkedIds.size > 0;
   }
 
   /**
-   * 返回当前通过复选框选中的标题节点列表。
+   * 返回当前复选框选中的标题节点。
    */
   getCheckedNodes(): HeadingNode[] {
     return Array.from(this.checkedIds)
@@ -93,13 +96,13 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
   }
 
   /**
-   * 根据复选框事件更新选中状态。
+   * 根据复选框状态变化更新内部缓存。
    */
-  updateCheckboxState(changes: ReadonlyArray<[HeadingTreeItem, vscode.TreeItemCheckboxState]>): void {
+  updateCheckboxState(changes: ReadonlyArray<[HeadingNode, vscode.TreeItemCheckboxState]>): void {
     let mutated = false;
 
-    for (const [item, state] of changes) {
-      const affectedIds = collectNodeIds(item.node);
+    for (const [node, state] of changes) {
+      const affectedIds = collectNodeIds(node);
 
       if (state === vscode.TreeItemCheckboxState.Checked) {
         for (const id of affectedIds) {
@@ -134,11 +137,62 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
     this._onDidChangeTreeData.fire();
   }
 
+  /**
+   * 依据编辑器当前行更新高亮标题。
+   */
+  setCurrentHeadingByLine(line: number | undefined): HeadingNode | undefined {
+    const previousId = this.currentHeadingId;
+
+    if (line === undefined) {
+      this.currentHeadingId = undefined;
+      if (previousId) {
+        const previousNode = this.nodeIndex.get(previousId);
+        if (previousNode) {
+          this._onDidChangeTreeData.fire(previousNode);
+        }
+      }
+      return undefined;
+    }
+
+    const node = this.findNearestNode(line);
+    if (!node) {
+      if (previousId) {
+        const previousNode = this.nodeIndex.get(previousId);
+        this.currentHeadingId = undefined;
+        if (previousNode) {
+          this._onDidChangeTreeData.fire(previousNode);
+        }
+      }
+    } else if (node.id !== previousId) {
+      this.currentHeadingId = node.id;
+      const changed: HeadingNode[] = [];
+      if (previousId) {
+        const previousNode = this.nodeIndex.get(previousId);
+        if (previousNode) {
+          changed.push(previousNode);
+        }
+      }
+      changed.push(node);
+      this._onDidChangeTreeData.fire(changed);
+    }
+
+    return node;
+  }
+
+  getCurrentHeadingNode(): HeadingNode | undefined {
+    if (!this.currentHeadingId) {
+      return undefined;
+    }
+
+    return this.nodeIndex.get(this.currentHeadingId);
+  }
+
   private createTreeItem(node: HeadingNode): HeadingTreeItem {
     const collapsibleState = node.children.length === 0 ? vscode.TreeItemCollapsibleState.None : this.resolveCollapsibleState(node.level);
+    const isCurrent = node.id === this.currentHeadingId;
     const displayLabel = formatLabel(node);
     const isChecked = this.checkedIds.has(node.id);
-    return new HeadingTreeItem(node, collapsibleState, displayLabel, isChecked);
+    return new HeadingTreeItem(node, collapsibleState, displayLabel, isChecked, isCurrent);
   }
 
   private resolveCollapsibleState(level: number): vscode.TreeItemCollapsibleState {
@@ -154,17 +208,18 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
       return vscode.TreeItemCollapsibleState.Expanded;
     }
 
-    return level < this.expandedLevel ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+    return level <= this.expandedLevel ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
   }
 
   private rebuildIndex(): void {
     this.nodeIndex.clear();
 
-    const stack = [...this.nodes];
-    while (stack.length > 0) {
-      const node = stack.pop()!;
+    const ordered: HeadingNode[] = [];
+    flattenNodes(this.nodes, ordered);
+    this.orderedNodes = ordered;
+
+    for (const node of ordered) {
       this.nodeIndex.set(node.id, node);
-      stack.push(...node.children);
     }
 
     for (const id of Array.from(this.checkedIds)) {
@@ -172,18 +227,53 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingTreeItem>
         this.checkedIds.delete(id);
       }
     }
+
+    if (this.currentHeadingId && !this.nodeIndex.has(this.currentHeadingId)) {
+      this.currentHeadingId = undefined;
+    }
+  }
+
+  private findNearestNode(line: number): HeadingNode | undefined {
+    let candidate: HeadingNode | undefined;
+
+    for (const node of this.orderedNodes) {
+      if (node.range.start.line <= line) {
+        candidate = node;
+      } else {
+        break;
+      }
+    }
+
+    return candidate;
+  }
+
+  findNodeById(id: string): HeadingNode | undefined {
+    return this.nodeIndex.get(id);
+  }
+
+  getOrderedNodes(): HeadingNode[] {
+    return [...this.orderedNodes];
+  }
+
+  getRootNodes(): HeadingNode[] {
+    return [...this.nodes];
+  }
+
+  isNodeChecked(id: string): boolean {
+    return this.checkedIds.has(id);
   }
 }
 
-export class HeadingTreeItem extends vscode.TreeItem {
+class HeadingTreeItem extends vscode.TreeItem {
   constructor(
     readonly node: HeadingNode,
     collapsibleState: vscode.TreeItemCollapsibleState,
     label: string,
-    checked: boolean
+    checked: boolean,
+    isCurrent: boolean
   ) {
     super(label, collapsibleState);
-    this.description = `Level ${node.level}`;
+    this.description = `Level ${node.level}${isCurrent ? ' • current' : ''}`;
     this.command = {
       command: 'headingNavigator.reveal',
       title: 'Reveal Heading',
@@ -191,7 +281,10 @@ export class HeadingTreeItem extends vscode.TreeItem {
     };
     this.contextValue = 'headingNavigator.heading';
     this.checkboxState = checked ? vscode.TreeItemCheckboxState.Checked : vscode.TreeItemCheckboxState.Unchecked;
-    this.tooltip = `${node.label}\nLevel: ${node.level}\nType: ${node.kind === 'markdown' ? 'Markdown' : 'Typst'}`;
+    this.iconPath = isCurrent
+      ? new vscode.ThemeIcon('record', new vscode.ThemeColor('charts.green'))
+      : new vscode.ThemeIcon('grabber');
+    this.tooltip = `${node.label}\nLevel: ${node.level}\nType: ${node.kind === 'markdown' ? 'Markdown' : 'Typst'}\n拖拽任意位置可重新排序。`;
     this.id = node.id;
   }
 }
@@ -259,4 +352,13 @@ function collectNodeIds(node: HeadingNode): string[] {
   }
 
   return ids;
+}
+
+function flattenNodes(nodes: HeadingNode[], receiver: HeadingNode[]): void {
+  for (const node of nodes) {
+    receiver.push(node);
+    if (node.children.length > 0) {
+      flattenNodes(node.children, receiver);
+    }
+  }
 }

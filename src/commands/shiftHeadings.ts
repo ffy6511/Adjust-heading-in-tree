@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { HeadingProvider, HeadingTreeItem, HeadingNode } from '../providers/headingProvider';
-import { parseHeadings, HeadingMatch, HeadingKind } from '../providers/parser';
+import { HeadingProvider, HeadingNode } from '../providers/headingProvider';
+import { parseHeadings, HeadingKind } from '../providers/parser';
 import { applyHeadingEdits, HeadingShiftEdit } from '../utils/textEditHelper';
 
 const MARKDOWN_LIMIT = 6;
@@ -8,17 +8,17 @@ const TYPST_LIMIT = 6;
 
 export function registerShiftCommands(
   provider: HeadingProvider,
-  treeView: vscode.TreeView<HeadingTreeItem>
+  treeView: vscode.TreeView<HeadingNode>
 ): vscode.Disposable {
   const shiftUp = vscode.commands.registerCommand(
     'headingNavigator.shiftUp',
-    async (item?: HeadingTreeItem, selectedItems?: readonly HeadingTreeItem[]) => {
+    async (item?: HeadingNode, selectedItems?: readonly HeadingNode[]) => {
       const context = resolveActiveSelection();
       if (!context) {
         return;
       }
 
-      const targets = resolveHeadingTargets(provider, treeView, item, selectedItems, context);
+  const targets = resolveHeadingTargets(provider, treeView, item, selectedItems, context);
       if (targets.length === 0) {
         void vscode.window.showInformationMessage('No headings to shift in the current selection.');
         return;
@@ -38,7 +38,7 @@ export function registerShiftCommands(
 
   const shiftDown = vscode.commands.registerCommand(
     'headingNavigator.shiftDown',
-    async (item?: HeadingTreeItem, selectedItems?: readonly HeadingTreeItem[]) => {
+    async (item?: HeadingNode, selectedItems?: readonly HeadingNode[]) => {
       const context = resolveActiveSelection();
       if (!context) {
         return;
@@ -165,32 +165,32 @@ function rebuildHeadingLine(lineText: string, kind: HeadingKind, level: number):
 
 function resolveHeadingTargets(
   provider: HeadingProvider,
-  treeView: vscode.TreeView<HeadingTreeItem>,
-  item: HeadingTreeItem | undefined,
-  selectedItems: readonly HeadingTreeItem[] | undefined,
+  treeView: vscode.TreeView<HeadingNode>,
+  item: HeadingNode | undefined,
+  selectedItems: readonly HeadingNode[] | undefined,
   context: SelectionContext
 ): HeadingTarget[] {
   if (item) {
-    return collectFromNodes([item.node]);
+    return collectFromNodes(provider, [item]);
   }
 
   if (selectedItems && selectedItems.length > 0) {
-    return collectFromNodes(selectedItems.map((treeItem) => treeItem.node));
+    return collectFromNodes(provider, [...selectedItems]);
   }
 
   if (provider.hasCheckedNodes()) {
-    return collectFromNodes(provider.getCheckedNodes());
+    return collectFromExactNodes(provider.getCheckedNodes());
   }
 
   const selection = treeView.selection;
   if (selection.length > 0) {
-    return collectFromNodes(selection.map((treeItem) => treeItem.node));
+    return collectFromNodes(provider, [...selection]);
   }
 
   return collectFromDocumentRange(context.editor, context.range);
 }
 
-function collectFromNodes(nodes: HeadingNode[]): HeadingTarget[] {
+function collectFromNodes(provider: HeadingProvider, nodes: HeadingNode[]): HeadingTarget[] {
   const targets = new Map<number, HeadingTarget>();
   const stack = [...nodes];
 
@@ -201,7 +201,28 @@ function collectFromNodes(nodes: HeadingNode[]): HeadingTarget[] {
       level: node.level,
       line: node.range.start.line
     });
-    stack.push(...node.children);
+
+    if (provider.isNodeChecked(node.id)) {
+      for (const child of node.children) {
+        if (provider.isNodeChecked(child.id)) {
+          stack.push(child);
+        }
+      }
+    }
+  }
+
+  return Array.from(targets.values()).sort((a, b) => a.line - b.line);
+}
+
+function collectFromExactNodes(nodes: HeadingNode[]): HeadingTarget[] {
+  const targets = new Map<number, HeadingTarget>();
+
+  for (const node of nodes) {
+    targets.set(node.range.start.line, {
+      kind: node.kind,
+      level: node.level,
+      line: node.range.start.line
+    });
   }
 
   return Array.from(targets.values()).sort((a, b) => a.line - b.line);
