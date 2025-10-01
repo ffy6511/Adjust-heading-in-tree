@@ -2,13 +2,24 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
   },
+  "icon": "resources/icons/logo.png",
+  "repository": {
+    "url": "https://github.com/ffy6511/Adjust-heading-in-tree"
+  },
   "categories": [
-    "Other"
+    "Formatters",
+    "Notebooks"
+  ],
+  "keywords": [
+    "markdown",
+    "typst",
+    "headings",
+    "navigation"
   ],
   "activationEvents": [
     "onCommand:headingNavigator.adjustTreeLevel",
@@ -42,7 +53,7 @@
         {
           "id": "headingNavigator",
           "title": "AHT",
-          "icon": "resources/icons/heading.svg"
+          "icon": "resources/icons/logo.svg"
         }
       ]
     },
