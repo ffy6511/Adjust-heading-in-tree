@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
 export interface HeadingShiftEdit {
   range: vscode.Range;
@@ -8,7 +8,10 @@ export interface HeadingShiftEdit {
 /**
  * 通过 WorkspaceEdit 一次性应用所有标题替换。
  */
-export async function applyHeadingEdits(document: vscode.TextDocument, edits: HeadingShiftEdit[]): Promise<void> {
+export async function applyHeadingEdits(
+  document: vscode.TextDocument,
+  edits: HeadingShiftEdit[],
+): Promise<void> {
   if (edits.length === 0) {
     return;
   }

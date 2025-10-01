@@ -1,7 +1,12 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
 export function registerToggleCommand(): vscode.Disposable {
-  return vscode.commands.registerCommand('headingNavigator.toggle', async () => {
-    await vscode.commands.executeCommand('workbench.view.extension.headingNavigator');
-  });
+  return vscode.commands.registerCommand(
+    "headingNavigator.toggle",
+    async () => {
+      await vscode.commands.executeCommand(
+        "workbench.view.extension.headingNavigator",
+      );
+    },
+  );
 }

@@ -1,8 +1,8 @@
-import * as vscode from 'vscode';
-import { HeadingProvider, HeadingNode } from '../providers/headingProvider';
+import * as vscode from "vscode";
+import { HeadingProvider, HeadingNode } from "../providers/headingProvider";
 
-const TREE_MIME = 'application/vnd.code.tree.headingnavigator.headingtree';
-const CUSTOM_MIME = 'application/vnd.adjust-heading.nodes';
+const TREE_MIME = "application/vnd.code.tree.headingnavigator.headingtree";
+const CUSTOM_MIME = "application/vnd.adjust-heading.nodes";
 
 interface HeadingBlock {
   node: HeadingNode;
@@ -12,21 +12,34 @@ interface HeadingBlock {
   endOffset: number;
 }
 
-export class HeadingDragAndDropController implements vscode.TreeDragAndDropController<HeadingNode>, vscode.Disposable {
+export class HeadingDragAndDropController
+  implements vscode.TreeDragAndDropController<HeadingNode>, vscode.Disposable
+{
   readonly dropMimeTypes = [TREE_MIME, CUSTOM_MIME];
   readonly dragMimeTypes = [CUSTOM_MIME];
 
   constructor(private readonly provider: HeadingProvider) {}
 
-  handleDrag(source: readonly HeadingNode[], dataTransfer: vscode.DataTransfer): void {
+  handleDrag(
+    source: readonly HeadingNode[],
+    dataTransfer: vscode.DataTransfer,
+  ): void {
     const ids = Array.from(new Set(source.map((node) => node.id)));
-    dataTransfer.set(CUSTOM_MIME, new vscode.DataTransferItem(JSON.stringify(ids)));
+    dataTransfer.set(
+      CUSTOM_MIME,
+      new vscode.DataTransferItem(JSON.stringify(ids)),
+    );
   }
 
-  async handleDrop(target: HeadingNode | undefined, dataTransfer: vscode.DataTransfer): Promise<void> {
+  async handleDrop(
+    target: HeadingNode | undefined,
+    dataTransfer: vscode.DataTransfer,
+  ): Promise<void> {
     const activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
-      void vscode.window.showWarningMessage('Open a document before reordering headings.');
+      void vscode.window.showWarningMessage(
+        "Open a document before reordering headings.",
+      );
       return;
     }
 
@@ -40,7 +53,7 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
     try {
       ids = JSON.parse(serialized);
     } catch (error) {
-      console.error('Failed to parse heading drag payload', error);
+      console.error("Failed to parse heading drag payload", error);
       return;
     }
     const nodes = ids
@@ -64,14 +77,21 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
       return;
     }
 
-    const targetInfo = this.resolveTargetInfo(document, orderedNodes, target, blocks);
+    const targetInfo = this.resolveTargetInfo(
+      document,
+      orderedNodes,
+      target,
+      blocks,
+    );
     if (!targetInfo) {
       return;
     }
 
     // Remove source blocks from document (from bottom to top to keep offsets valid).
     const edit = new vscode.WorkspaceEdit();
-    for (const block of [...blocks].sort((a, b) => b.startOffset - a.startOffset)) {
+    for (const block of [...blocks].sort(
+      (a, b) => b.startOffset - a.startOffset,
+    )) {
       edit.delete(document.uri, block.range);
     }
 
@@ -82,9 +102,13 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
 
     // After removal, compute new insert position.
     const updatedDocument = activeEditor.document;
-    const insertionOffset = this.adjustOffsetAfterRemoval(targetInfo.offset, blocks, targetInfo.isTargetAfterSelection);
+    const insertionOffset = this.adjustOffsetAfterRemoval(
+      targetInfo.offset,
+      blocks,
+      targetInfo.isTargetAfterSelection,
+    );
     const insertionPosition = updatedDocument.positionAt(insertionOffset);
-    const insertText = blocks.map((block) => block.text).join('');
+    const insertText = blocks.map((block) => block.text).join("");
 
     await activeEditor.edit((builder) => {
       builder.insert(insertionPosition, insertText);
@@ -92,9 +116,14 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
 
     this.provider.refresh(updatedDocument);
 
-    const revealNode = this.provider.setCurrentHeadingByLine(insertionPosition.line);
+    const revealNode = this.provider.setCurrentHeadingByLine(
+      insertionPosition.line,
+    );
     if (revealNode) {
-      void vscode.commands.executeCommand('headingNavigator.reveal', revealNode.range);
+      void vscode.commands.executeCommand(
+        "headingNavigator.reveal",
+        revealNode.range,
+      );
     }
   }
 
@@ -105,9 +134,13 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
   private computeBlocks(
     document: vscode.TextDocument,
     orderedNodes: HeadingNode[],
-    nodes: HeadingNode[]
+    nodes: HeadingNode[],
   ): HeadingBlock[] {
-    const uniqueNodes = this.filterNestedSelections(document, orderedNodes, nodes);
+    const uniqueNodes = this.filterNestedSelections(
+      document,
+      orderedNodes,
+      nodes,
+    );
     const blocks: HeadingBlock[] = [];
 
     for (const node of uniqueNodes) {
@@ -118,7 +151,7 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
         range,
         text,
         startOffset: document.offsetAt(range.start),
-        endOffset: document.offsetAt(range.end)
+        endOffset: document.offsetAt(range.end),
       });
     }
 
@@ -128,15 +161,21 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
   private filterNestedSelections(
     document: vscode.TextDocument,
     orderedNodes: HeadingNode[],
-    nodes: HeadingNode[]
+    nodes: HeadingNode[],
   ): HeadingNode[] {
-    const sorted = [...nodes].sort((a, b) => a.range.start.line - b.range.start.line);
+    const sorted = [...nodes].sort(
+      (a, b) => a.range.start.line - b.range.start.line,
+    );
     const result: HeadingNode[] = [];
 
     for (const node of sorted) {
       const nodeRange = computeHeadingRange(document, orderedNodes, node);
       const isNested = result.some((existing) => {
-        const existingRange = computeHeadingRange(document, orderedNodes, existing);
+        const existingRange = computeHeadingRange(
+          document,
+          orderedNodes,
+          existing,
+        );
         return existingRange.contains(nodeRange);
       });
 
@@ -152,10 +191,13 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
     document: vscode.TextDocument,
     orderedNodes: HeadingNode[],
     target: HeadingNode | undefined,
-    blocks: HeadingBlock[]
+    blocks: HeadingBlock[],
   ): { offset: number; isTargetAfterSelection: boolean } | undefined {
     if (!target) {
-      return { offset: document.getText().length, isTargetAfterSelection: true };
+      return {
+        offset: document.getText().length,
+        isTargetAfterSelection: true,
+      };
     }
 
     const targetRange = computeHeadingRange(document, orderedNodes, target);
@@ -163,7 +205,10 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
 
     // Prevent dropping into own subtree.
     for (const block of blocks) {
-      if (block.range.contains(targetRange) || targetRange.contains(block.range)) {
+      if (
+        block.range.contains(targetRange) ||
+        targetRange.contains(block.range)
+      ) {
         return undefined;
       }
     }
@@ -177,7 +222,7 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
   private adjustOffsetAfterRemoval(
     targetOffset: number,
     blocks: HeadingBlock[],
-    targetOriginallyAfterSelection: boolean
+    targetOriginallyAfterSelection: boolean,
   ): number {
     let adjustedOffset = targetOffset;
 
@@ -195,10 +240,10 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
   }
 }
 
-function computeHeadingRange(
+export function computeHeadingRange(
   document: vscode.TextDocument,
   orderedNodes: HeadingNode[],
-  node: HeadingNode
+  node: HeadingNode,
 ): vscode.Range {
   const startLine = node.range.start.line;
   let endLine = document.lineCount - 1;
@@ -219,9 +264,10 @@ function computeHeadingRange(
   }
 
   const start = new vscode.Position(startLine, 0);
-  const end = endLine + 1 < document.lineCount
-    ? new vscode.Position(endLine + 1, 0)
-    : document.lineAt(endLine).range.end;
+  const end =
+    endLine + 1 < document.lineCount
+      ? new vscode.Position(endLine + 1, 0)
+      : document.lineAt(endLine).range.end;
 
   return new vscode.Range(start, end);
 }

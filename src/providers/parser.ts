@@ -1,6 +1,6 @@
-import { Position, Range } from 'vscode';
+import { Position, Range } from "vscode";
 
-export type HeadingKind = 'markdown' | 'typst';
+export type HeadingKind = "markdown" | "typst";
 
 export interface HeadingMatch {
   kind: HeadingKind;
@@ -26,21 +26,31 @@ export function parseHeadings(content: string): HeadingMatch[] {
 
     if (markdownResult) {
       const [, hashes, title] = markdownResult;
-      matches.push(makeMatch('markdown', lineNumber, hashes.length, title.trim(), line.length));
+      matches.push(
+        makeMatch(
+          "markdown",
+          lineNumber,
+          hashes.length,
+          title.trim(),
+          line.length,
+        ),
+      );
       continue;
     }
 
     const typstResult = parseTypstHeading(line);
     if (typstResult) {
       const { level, text } = typstResult;
-      matches.push(makeMatch('typst', lineNumber, level, text, line.length));
+      matches.push(makeMatch("typst", lineNumber, level, text, line.length));
     }
   }
 
   return matches;
 }
 
-function parseTypstHeading(line: string): { level: number; text: string } | undefined {
+function parseTypstHeading(
+  line: string,
+): { level: number; text: string } | undefined {
   const match = typstHeading.exec(line);
   if (!match) {
     return undefined;
@@ -55,7 +65,13 @@ function parseTypstHeading(line: string): { level: number; text: string } | unde
   return { level, text };
 }
 
-function makeMatch(kind: HeadingKind, line: number, level: number, text: string, lineLength: number): HeadingMatch {
+function makeMatch(
+  kind: HeadingKind,
+  line: number,
+  level: number,
+  text: string,
+  lineLength: number,
+): HeadingMatch {
   const start = new Position(line, 0);
   const end = new Position(line, lineLength);
   return {
@@ -63,6 +79,6 @@ function makeMatch(kind: HeadingKind, line: number, level: number, text: string,
     level,
     text,
     line,
-    range: new Range(start, end)
+    range: new Range(start, end),
   };
 }

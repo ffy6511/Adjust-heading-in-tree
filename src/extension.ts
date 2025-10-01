@@ -1,21 +1,28 @@
-import * as vscode from 'vscode';
-import { HeadingProvider, HeadingNode } from './providers/headingProvider';
-import { registerShiftCommands } from './commands/shiftHeadings';
-import { registerToggleCommand } from './commands/toggleView';
-import { registerTreeLevelCommand } from './commands/treeLevelControl';
-import { HeadingDragAndDropController } from './dnd/headingDragAndDrop';
+import * as vscode from "vscode";
+import { HeadingProvider, HeadingNode } from "./providers/headingProvider";
+import { registerShiftCommands } from "./commands/shiftHeadings";
+import { registerToggleCommand } from "./commands/toggleView";
+import { registerTreeLevelCommand } from "./commands/treeLevelControl";
+import { registerReorderCommands } from "./commands/reorderHeadings";
+import { registerHelpCommand } from "./commands/showHelp";
+import { HeadingDragAndDropController } from "./dnd/headingDragAndDrop";
 
 export function activate(context: vscode.ExtensionContext): void {
   const headingProvider = new HeadingProvider();
 
-  const dragAndDropController = new HeadingDragAndDropController(headingProvider);
+  const dragAndDropController = new HeadingDragAndDropController(
+    headingProvider,
+  );
 
-  const treeView = vscode.window.createTreeView<HeadingNode>('headingNavigator.headingTree', {
-    treeDataProvider: headingProvider,
-    showCollapseAll: true,
-    canSelectMany: true,
-    dragAndDropController
-  });
+  const treeView = vscode.window.createTreeView<HeadingNode>(
+    "headingNavigator.headingTree",
+    {
+      treeDataProvider: headingProvider,
+      showCollapseAll: true,
+      canSelectMany: true,
+      dragAndDropController,
+    },
+  );
 
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
@@ -33,42 +40,54 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       headingProvider.refresh(editor?.document);
       syncToEditor(editor ?? undefined);
-    })
+    }),
   );
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
       const activeDocument = vscode.window.activeTextEditor?.document;
-      if (activeDocument && event.document.uri.toString() === activeDocument.uri.toString()) {
+      if (
+        activeDocument &&
+        event.document.uri.toString() === activeDocument.uri.toString()
+      ) {
         headingProvider.refresh(activeDocument);
         syncToEditor();
       }
-    })
+    }),
   );
 
   context.subscriptions.push(registerShiftCommands(headingProvider, treeView));
+  context.subscriptions.push(
+    registerReorderCommands(headingProvider, treeView),
+  );
   context.subscriptions.push(registerToggleCommand());
-  context.subscriptions.push(registerTreeLevelCommand(headingProvider, treeView));
+  context.subscriptions.push(
+    registerTreeLevelCommand(headingProvider, treeView),
+  );
+  context.subscriptions.push(registerHelpCommand());
 
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((event) => {
       if (event.textEditor === vscode.window.activeTextEditor) {
         syncToEditor(event.textEditor);
       }
-    })
+    }),
   );
 
   syncToEditor();
 
-  const revealDisposable = vscode.commands.registerCommand('headingNavigator.reveal', (range: vscode.Range) => {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      return;
-    }
+  const revealDisposable = vscode.commands.registerCommand(
+    "headingNavigator.reveal",
+    (range: vscode.Range) => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
 
-    editor.selection = new vscode.Selection(range.start, range.start);
-    editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
-  });
+      editor.selection = new vscode.Selection(range.start, range.start);
+      editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+    },
+  );
 
   context.subscriptions.push(revealDisposable);
 }
