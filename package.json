@@ -62,22 +62,22 @@
       {
         "command": "headingNavigator.shiftUp",
         "title": "Shift Selected Headings Up",
-        "icon": "$(arrow-left)"
+        "icon": "$(triangle-left)"
       },
       {
         "command": "headingNavigator.shiftDown",
         "title": "Shift Selected Headings Down",
-        "icon": "$(arrow-right)"
+        "icon": "$(triangle-right)"
       },
       {
         "command": "headingNavigator.moveHeadingUp",
         "title": "Move Heading Up Within Parent",
-        "icon": "$(arrow-small-up)"
+        "icon": "$(fold-up)"
       },
       {
         "command": "headingNavigator.moveHeadingDown",
         "title": "Move Heading Down Within Parent",
-        "icon": "$(arrow-small-down)"
+        "icon": "$(fold-down)"
       },
       {
         "command": "headingNavigator.reveal",
@@ -97,32 +97,33 @@
     "keybindings": [
       {
         "command": "headingNavigator.toggle",
-        "key": "ctrl+shift+h",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
         "when": "editorTextFocus"
       },
       {
         "command": "headingNavigator.shiftUp",
-        "key": "ctrl+left",
-        "mac": "cmd+left",
-        "when": "view == headingNavigator.headingTree && !inputFocus"
+        "key": "ctrl+shift+left",
+        "mac": "cmd+shift+left",
+        "when": "focusedView == headingNavigator.headingTree"
       },
       {
         "command": "headingNavigator.shiftDown",
-        "key": "ctrl+right",
-        "mac": "cmd+right",
-        "when": "view == headingNavigator.headingTree && !inputFocus"
+        "key": "ctrl+shift+right",
+        "mac": "cmd+shift+right",
+        "when": "focusedView == headingNavigator.headingTree"
       },
       {
         "command": "headingNavigator.moveHeadingUp",
-        "key": "ctrl+up",
-        "mac": "cmd+up",
-        "when": "view == headingNavigator.headingTree && !inputFocus"
+        "key": "ctrl+shift+up",
+        "mac": "cmd+shift+up",
+        "when": "focusedView == headingNavigator.headingTree"
       },
       {
         "command": "headingNavigator.moveHeadingDown",
-        "key": "ctrl+down",
-        "mac": "cmd+down",
-        "when": "view == headingNavigator.headingTree && !inputFocus"
+        "key": "ctrl+shift+down",
+        "mac": "cmd+shift+down",
+        "when": "focusedView == headingNavigator.headingTree"
       }
     ],
     "menus": {
@@ -148,6 +149,16 @@
           "command": "headingNavigator.shiftDown",
           "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
           "group": "inline@2"
+        },
+        {
+          "command": "headingNavigator.moveHeadingUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.moveHeadingDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "group": "inline@4"
         }
       ]
     }

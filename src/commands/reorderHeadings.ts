@@ -130,13 +130,17 @@ async function moveWithinParent(
   });
 
   provider.refresh(updatedDoc);
-  const refreshedNode = provider.findNodeById(nodes[0].id);
+  const refreshedNode = provider.setCurrentHeadingByLine(insertPosition.line);
   if (refreshedNode) {
-    void treeView.reveal(refreshedNode, {
-      expand: true,
-      focus: true,
-      select: true,
-    });
+    try {
+      await treeView.reveal(refreshedNode, {
+        expand: true,
+        focus: true,
+        select: true,
+      });
+    } catch (error) {
+      console.error('Failed to reveal heading after reordering', error);
+    }
   }
 }
 
