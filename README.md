@@ -6,11 +6,6 @@
 
 Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩展，提供导航树、拖拽重排与批量层级调整，帮助你像操作“块”一样管理整段内容。
 
-<video width="640" height="360" controls>
-  <source src="./resources/AHT_Demo.mp4" type="video/mp4">
-  您的浏览器不支持 video 标签。
-</video>
-
 ### 功能特性
 
 - **标题结构导航**：在侧边栏展示 Markdown `#` 与 Typst `=` 标题形成的层级树，支持展开、折叠与点击定位；
@@ -19,6 +14,10 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
 - **批量层级调整**：整体提升或降低选中标题及其子树的层级；
 - **层级显示控制**：使用工具栏按钮设置导航树的最大展开层级；
 - **帮助面板**：一键查看常用操作说明及其快捷键设置。
+
+<div align="center">
+  <img src="./resources/imgs/cover.png" alt="cover" width="90%">
+</div>
 
 ### 快捷键
 
@@ -40,11 +39,6 @@ MIT License
 
 Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. It provides navigation trees, drag-and-drop rearrangements, and batch hierarchy adjustments so you can manage entire sections like modular blocks.
 
-<video width="640" height="360" controls>
-  <source src="./resources/AHT_Demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
 ### Features
 
 - **Title structure navigation**: Display the heading hierarchy formed by Markdown `#` and Typst `=` in the sidebar, with expand, collapse, and click-to-jump support.
@@ -53,6 +47,10 @@ Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. 
 - **Batch hierarchy shift**: Promote or demote selected headings together with their subtrees in one action.
 - **Hierarchy depth control**: Set the maximum expanded level of the navigation tree via toolbar buttons.
 - **Help panel**: Open a consolidated help view with all common actions and shortcut references.
+
+<div align="center">
+  <img src="./resources/imgs/cover.png" alt="cover" width="90%">
+</div>
 
 ### Shortcuts
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.0.4] -2025-10-01
+
+- Replace mp4 with img for the time being.
+
 ## [0.0.3] - 2025-10-01
 
 ### Fixed
