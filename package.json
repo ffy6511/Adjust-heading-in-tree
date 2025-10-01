@@ -83,23 +83,13 @@
             }
         ],
         "menus": {
-            "view/title": [
-                {
-                    "command": "headingNavigator.shiftUp",
-                    "when": "view == headingNavigator.headingTree",
-                    "group": "navigation@1"
-                },
-                {
-                    "command": "headingNavigator.shiftDown",
-                    "when": "view == headingNavigator.headingTree",
-                    "group": "navigation@2"
-                },
-                {
-                    "command": "headingNavigator.adjustTreeLevel",
-                    "when": "view == headingNavigator.headingTree",
-                    "group": "navigation@3"
-                }
-            ],
+      "view/title": [
+        {
+          "command": "headingNavigator.adjustTreeLevel",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@3"
+        }
+      ],
             "view/item/context": [
                 {
                     "command": "headingNavigator.shiftUp",

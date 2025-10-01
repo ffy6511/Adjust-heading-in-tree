@@ -90,7 +90,6 @@ export class HeadingDragAndDropController implements vscode.TreeDragAndDropContr
       builder.insert(insertionPosition, insertText);
     });
 
-    this.provider.clearCheckedNodes();
     this.provider.refresh(updatedDocument);
 
     const revealNode = this.provider.setCurrentHeadingByLine(insertionPosition.line);

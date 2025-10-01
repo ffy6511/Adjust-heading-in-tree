@@ -22,7 +22,6 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
 
   private readonly nodes: HeadingNode[] = [];
   private readonly nodeIndex = new Map<string, HeadingNode>();
-  private readonly checkedIds = new Set<string>();
   private orderedNodes: HeadingNode[] = [];
   private expandedLevel: number | null | undefined;
   private currentHeadingId: string | undefined;
@@ -83,64 +82,6 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
   }
 
   /**
-   * 判断是否存在通过复选框选中的节点。
-   */
-  hasCheckedNodes(): boolean {
-    return this.checkedIds.size > 0;
-  }
-
-  /**
-   * 返回当前复选框选中的标题节点。
-   */
-  getCheckedNodes(): HeadingNode[] {
-    return Array.from(this.checkedIds)
-      .map((id) => this.nodeIndex.get(id))
-      .filter((node): node is HeadingNode => Boolean(node));
-  }
-
-  /**
-   * 根据复选框状态变化更新内部缓存。
-   */
-  updateCheckboxState(changes: ReadonlyArray<[HeadingNode, vscode.TreeItemCheckboxState]>): void {
-    let mutated = false;
-
-    for (const [node, state] of changes) {
-      const affectedIds = collectNodeIds(node);
-
-      if (state === vscode.TreeItemCheckboxState.Checked) {
-        for (const id of affectedIds) {
-          if (!this.checkedIds.has(id)) {
-            this.checkedIds.add(id);
-            mutated = true;
-          }
-        }
-      } else if (state === vscode.TreeItemCheckboxState.Unchecked) {
-        for (const id of affectedIds) {
-          if (this.checkedIds.delete(id)) {
-            mutated = true;
-          }
-        }
-      }
-    }
-
-    if (mutated) {
-      this._onDidChangeTreeData.fire();
-    }
-  }
-
-  /**
-   * 清除所有复选框状态。
-   */
-  clearCheckedNodes(): void {
-    if (this.checkedIds.size === 0) {
-      return;
-    }
-
-    this.checkedIds.clear();
-    this._onDidChangeTreeData.fire();
-  }
-
-  /**
    * 依据编辑器当前行更新高亮标题。
    */
   setCurrentHeadingByLine(line: number | undefined): HeadingNode | undefined {
@@ -194,8 +135,7 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     const collapsibleState = node.children.length === 0 ? vscode.TreeItemCollapsibleState.None : this.resolveCollapsibleState(node.level);
     const isCurrent = node.id === this.currentHeadingId;
     const displayLabel = formatLabel(node);
-    const isChecked = this.checkedIds.has(node.id);
-    return new HeadingTreeItem(node, collapsibleState, displayLabel, isChecked, isCurrent, getLevelIcon(node.level, isCurrent));
+    return new HeadingTreeItem(node, collapsibleState, displayLabel, isCurrent, getLevelIcon(node.level, isCurrent));
   }
 
   private resolveCollapsibleState(level: number): vscode.TreeItemCollapsibleState {
@@ -223,12 +163,6 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
 
     for (const node of ordered) {
       this.nodeIndex.set(node.id, node);
-    }
-
-    for (const id of Array.from(this.checkedIds)) {
-      if (!this.nodeIndex.has(id)) {
-        this.checkedIds.delete(id);
-      }
     }
 
     if (this.currentHeadingId && !this.nodeIndex.has(this.currentHeadingId)) {
@@ -261,10 +195,6 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
   getRootNodes(): HeadingNode[] {
     return [...this.nodes];
   }
-
-  isNodeChecked(id: string): boolean {
-    return this.checkedIds.has(id);
-  }
 }
 
 class HeadingTreeItem extends vscode.TreeItem {
@@ -272,7 +202,6 @@ class HeadingTreeItem extends vscode.TreeItem {
     readonly node: HeadingNode,
     collapsibleState: vscode.TreeItemCollapsibleState,
     label: string,
-    checked: boolean,
     isCurrent: boolean,
     iconSet: { light: vscode.Uri; dark: vscode.Uri }
   ) {
@@ -284,7 +213,6 @@ class HeadingTreeItem extends vscode.TreeItem {
       arguments: [node.range]
     };
     this.contextValue = 'headingNavigator.heading';
-    this.checkboxState = checked ? vscode.TreeItemCheckboxState.Checked : vscode.TreeItemCheckboxState.Unchecked;
     this.iconPath = iconSet;
     if (isCurrent) {
       this.iconPath = {
@@ -346,19 +274,6 @@ function findParent(haystack: HeadingNode[], target: HeadingNode): HeadingNode |
 function formatLabel(node: HeadingNode): string {
   const base = node.label.trim() === '' ? '(Untitled)' : node.label;
   return base.length > MAX_LABEL_LENGTH ? `${base.slice(0, MAX_LABEL_LENGTH - 1)}…` : base;
-}
-
-function collectNodeIds(node: HeadingNode): string[] {
-  const ids: string[] = [];
-  const stack = [node];
-
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    ids.push(current.id);
-    stack.push(...current.children);
-  }
-
-  return ids;
 }
 
 function flattenNodes(nodes: HeadingNode[], receiver: HeadingNode[]): void {

@@ -31,7 +31,6 @@ export function registerShiftCommands(
       }
 
       provider.refresh(context.editor.document);
-      provider.clearCheckedNodes();
       void vscode.window.showInformationMessage('Shifted headings up by one level.');
     }
   );
@@ -57,7 +56,6 @@ export function registerShiftCommands(
       }
 
       provider.refresh(context.editor.document);
-      provider.clearCheckedNodes();
       void vscode.window.showInformationMessage('Shifted headings down by one level.');
     }
   );
@@ -178,10 +176,6 @@ function resolveHeadingTargets(
     return collectFromNodes(provider, [...selectedItems]);
   }
 
-  if (provider.hasCheckedNodes()) {
-    return collectFromExactNodes(provider.getCheckedNodes());
-  }
-
   const selection = treeView.selection;
   if (selection.length > 0) {
     return collectFromNodes(provider, [...selection]);
@@ -202,27 +196,7 @@ function collectFromNodes(provider: HeadingProvider, nodes: HeadingNode[]): Head
       line: node.range.start.line
     });
 
-    if (provider.isNodeChecked(node.id)) {
-      for (const child of node.children) {
-        if (provider.isNodeChecked(child.id)) {
-          stack.push(child);
-        }
-      }
-    }
-  }
-
-  return Array.from(targets.values()).sort((a, b) => a.line - b.line);
-}
-
-function collectFromExactNodes(nodes: HeadingNode[]): HeadingTarget[] {
-  const targets = new Map<number, HeadingTarget>();
-
-  for (const node of nodes) {
-    targets.set(node.range.start.line, {
-      kind: node.kind,
-      level: node.level,
-      line: node.range.start.line
-    });
+    stack.push(...node.children);
   }
 
   return Array.from(targets.values()).sort((a, b) => a.line - b.line);

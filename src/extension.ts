@@ -14,7 +14,6 @@ export function activate(context: vscode.ExtensionContext): void {
     treeDataProvider: headingProvider,
     showCollapseAll: true,
     canSelectMany: true,
-    manageCheckboxStateManually: true,
     dragAndDropController
   });
 
@@ -44,12 +43,6 @@ export function activate(context: vscode.ExtensionContext): void {
         headingProvider.refresh(activeDocument);
         syncToEditor();
       }
-    })
-  );
-
-  context.subscriptions.push(
-    treeView.onDidChangeCheckboxState((event) => {
-      headingProvider.updateCheckboxState(event.items);
     })
   );
 
