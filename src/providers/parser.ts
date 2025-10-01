@@ -32,8 +32,8 @@ export function parseHeadings(content: string): HeadingMatch[] {
           lineNumber,
           hashes.length,
           title.trim(),
-          line.length,
-        ),
+          line.length
+        )
       );
       continue;
     }
@@ -49,7 +49,7 @@ export function parseHeadings(content: string): HeadingMatch[] {
 }
 
 function parseTypstHeading(
-  line: string,
+  line: string
 ): { level: number; text: string } | undefined {
   const match = typstHeading.exec(line);
   if (!match) {
@@ -70,7 +70,7 @@ function makeMatch(
   line: number,
   level: number,
   text: string,
-  lineLength: number,
+  lineLength: number
 ): HeadingMatch {
   const start = new Position(line, 0);
   const end = new Position(line, lineLength);

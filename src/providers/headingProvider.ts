@@ -49,10 +49,10 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
 
   getChildren(element?: HeadingNode): HeadingNode[] {
     if (!element) {
-      return this.nodes;
+      return this.filteredChildren(this.nodes, 1);
     }
 
-    return element.children;
+    return this.filteredChildren(element.children, element.level + 1);
   }
 
   getParent(element: HeadingNode): HeadingNode | null {
@@ -219,6 +219,20 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
 
   getRootNodes(): HeadingNode[] {
     return [...this.nodes];
+  }
+
+  private filteredChildren(children: HeadingNode[], level: number): HeadingNode[] {
+    if (this.expandedLevel === 0) {
+      return [];
+    }
+
+    if (this.expandedLevel !== undefined && this.expandedLevel !== null) {
+      if (level > this.expandedLevel) {
+        return [];
+      }
+    }
+
+    return children;
   }
 }
 

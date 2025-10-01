@@ -30,10 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const syncToEditor = (editor?: vscode.TextEditor) => {
     const activeEditor = editor ?? vscode.window.activeTextEditor;
     const line = activeEditor?.selection.active.line;
-    const node = headingProvider.setCurrentHeadingByLine(line);
-    if (node) {
-      void treeView.reveal(node, { select: false, focus: false, expand: true });
-    }
+    headingProvider.setCurrentHeadingByLine(line);
   };
 
   context.subscriptions.push(
