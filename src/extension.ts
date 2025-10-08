@@ -63,7 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerTreeLevelCommand(headingProvider, treeView),
   );
   context.subscriptions.push(
-    registerExportCommands(headingProvider, treeView, context),
+    registerExportCommands(headingProvider, treeView),
   );
   context.subscriptions.push(registerHelpCommand());
 

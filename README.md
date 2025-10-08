@@ -13,9 +13,9 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
 - **同级快速排序**：通过内联按钮或快捷键在同一父级内向上/向下移动标题块；
 - **批量层级调整**：整体提升或降低选中标题及其子树的层级；
 - **层级显示控制**：使用工具栏按钮设置导航树的最大展开层级；
-- **帮助面板**：一键查看常用操作说明及其快捷键设置。
+- **导出子树**：单独将选中的标题子树导出为 PDF 或 PNG 图片，方便分享或进一步处理(需要安装 Tinymist)；
 
-<div align="center">
+<div align="center">s
   <img src="./resources/imgs/cover.png" alt="cover" width="90%">
 </div>
 
@@ -46,7 +46,7 @@ Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. 
 - **Peer-level quick sort**: Use inline buttons or shortcuts to move a heading block up or down within the same parent.
 - **Batch hierarchy shift**: Promote or demote selected headings together with their subtrees in one action.
 - **Hierarchy depth control**: Set the maximum expanded level of the navigation tree via toolbar buttons.
-- **Help panel**: Open a consolidated help view with all common actions and shortcut references.
+- **Subtree export**: Export a heading subtree as a PDF or PNG image for sharing or further processing(requires Tinymist).
 
 <div align="center">
   <img src="./resources/imgs/cover.png" alt="cover" width="90%">

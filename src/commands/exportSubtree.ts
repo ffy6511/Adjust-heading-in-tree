@@ -1,6 +1,5 @@
 import * as fs from "fs/promises";
 import { randomUUID } from "crypto";
-import { spawn } from "child_process";
 import * as path from "path";
 import * as vscode from "vscode";
 import { HeadingNode, HeadingProvider } from "../providers/headingProvider";
@@ -10,9 +9,11 @@ import {
   SubtreeSlice,
 } from "../utils/subtree";
 
-const EXTRA_IMPORTS_KEY = "headingNavigator.export.extraImports";
-const PNG_PPI_KEY = "headingNavigator.export.pngPpi";
 const TYPST_LANGUAGE_ID = "typst";
+const EXPORT_CONFIG_SECTION = "adjustHeadingInTree.export";
+const CONFIG_EXTRA_IMPORTS_FILE = "extraImportsFile";
+const CONFIG_PNG_PPI = "pngPpi";
+const TINYMIST_EXTENSION_ID = "myriad-dreamin.tinymist";
 
 type ProgressReporter = vscode.Progress<{ message?: string }>;
 
@@ -26,14 +27,13 @@ class ExportError extends Error {
 type ExportCommandContext = {
   provider: HeadingProvider;
   treeView: vscode.TreeView<HeadingNode>;
-  extensionContext: vscode.ExtensionContext;
 };
 
-type ExportChoice = "pdf" | "png";
+type ExportChoice = "pdf" | "png" | "settings";
 
 interface PdfSettings {
   outputUri: vscode.Uri;
-  extraImports: string;
+  extraImportsFile?: string;
 }
 
 interface PngSettings extends PdfSettings {
@@ -43,9 +43,8 @@ interface PngSettings extends PdfSettings {
 export function registerExportCommands(
   provider: HeadingProvider,
   treeView: vscode.TreeView<HeadingNode>,
-  extensionContext: vscode.ExtensionContext,
 ): vscode.Disposable {
-  const context: ExportCommandContext = { provider, treeView, extensionContext };
+  const context: ExportCommandContext = { provider, treeView };
 
   const openMenu = vscode.commands.registerCommand(
     "headingNavigator.openExportMenu",
@@ -54,7 +53,17 @@ export function registerExportCommands(
     },
   );
 
-  return vscode.Disposable.from(openMenu);
+  const openSettings = vscode.commands.registerCommand(
+    "headingNavigator.openExportSettings",
+    openExportSettings,
+  );
+
+  const editImportsSetting = vscode.commands.registerCommand(
+    "headingNavigator.editExtraImportsSetting",
+    editExtraImportsSetting,
+  );
+
+  return vscode.Disposable.from(openMenu, openSettings, editImportsSetting);
 }
 
 async function handleExportMenu(
@@ -74,13 +83,18 @@ async function handleExportMenu(
     [
       {
         label: "$(file-pdf) Export as PDF",
-        detail: "Generate a PDF for the selected Typst subtree using tinymist.",
+        detail: "Generate a PDF for the selected Typst subtree using Tinymist.",
         choice: "pdf",
       },
       {
         label: "$(file-media) Export as PNG",
-        detail: "Render the subtree as a single PNG image.",
+        detail: "Render the subtree as a single merged PNG image.",
         choice: "png",
+      },
+      {
+        label: "$(settings-gear) Export Settings",
+        detail: "Open export settings or edit shared extra imports.",
+        choice: "settings",
       },
     ],
     {
@@ -90,6 +104,11 @@ async function handleExportMenu(
   );
 
   if (!choice) {
+    return;
+  }
+
+  if (choice.choice === "settings") {
+    await openExportSettings();
     return;
   }
 
@@ -123,19 +142,19 @@ async function handleExportMenu(
   }
 
   if (choice.choice === "pdf") {
-    const settings = await configurePdfExport(ctx, editor.document, target);
+    const settings = await configurePdfExport(editor.document, target);
     if (!settings) {
       return;
     }
-    await exportSubtreeAsPdf(ctx, editor.document, target, slice, settings);
+    await exportSubtreeAsPdf(editor.document, target, slice, settings);
     return;
   }
 
-  const settings = await configurePngExport(ctx, editor.document, target);
+  const settings = await configurePngExport(editor.document, target);
   if (!settings) {
     return;
   }
-  await exportSubtreeAsPng(ctx, editor.document, target, slice, settings);
+  await exportSubtreeAsPng(editor.document, target, slice, settings);
 }
 
 function resolveTargetNode(
@@ -168,15 +187,271 @@ interface ExportSettingPick extends vscode.QuickPickItem {
 
 type ExportSettingAction = "output" | "imports" | "confirm" | "ppi";
 
+interface ExportConfiguration {
+  extraImportsFile?: string;
+  pngPpi: number;
+}
+
+function getExportConfiguration(document: vscode.TextDocument): ExportConfiguration {
+  const config = vscode.workspace.getConfiguration(
+    EXPORT_CONFIG_SECTION,
+    document.uri,
+  );
+  const extraImportsFile = config.get<string>(CONFIG_EXTRA_IMPORTS_FILE, "");
+  const pngPpi = config.get<number>(CONFIG_PNG_PPI, 144);
+  return {
+    extraImportsFile: extraImportsFile?.trim() ? extraImportsFile.trim() : undefined,
+    pngPpi,
+  };
+}
+
+function resolveConfigurationTarget(
+  _uri?: vscode.Uri,
+): vscode.ConfigurationTarget {
+  if (vscode.workspace.workspaceFolders?.length) {
+    return vscode.ConfigurationTarget.Workspace;
+  }
+
+  return vscode.ConfigurationTarget.Global;
+}
+
+async function openExportSettings(): Promise<void> {
+  const selection = await vscode.window.showQuickPick<
+    vscode.QuickPickItem & { action: "settings" | "imports" | "ppi" }
+  >(
+    [
+      {
+        label: "$(gear) Open Settings UI",
+        description: "Adjust export preferences via VS Code Settings.",
+        action: "settings",
+      },
+      {
+        label: "$(edit) Edit extra Typst imports",
+        description: "Open an editor to modify the shared imports snippet.",
+        action: "imports",
+      },
+      {
+        label: "$(symbol-parameter) Set default PNG PPI",
+        description: "Update the PNG rasterization resolution.",
+        action: "ppi",
+      },
+    ],
+    {
+      placeHolder: "Adjust subtree export behavior",
+      ignoreFocusOut: true,
+    },
+  );
+
+  if (!selection) {
+    return;
+  }
+
+  if (selection.action === "settings") {
+    await vscode.commands.executeCommand(
+      "workbench.action.openSettings",
+      EXPORT_CONFIG_SECTION,
+    );
+    return;
+  }
+
+  if (selection.action === "imports") {
+    await editExtraImportsSetting();
+    return;
+  }
+
+  const currentValue =
+    vscode.workspace
+      .getConfiguration(EXPORT_CONFIG_SECTION)
+      .get<number>(CONFIG_PNG_PPI, 144);
+  const updated = await editImagePpi(currentValue);
+  if (updated === undefined) {
+    return;
+  }
+  await updateExportSetting(CONFIG_PNG_PPI, updated);
+  void vscode.window.showInformationMessage(
+    `Default PNG PPI set to ${updated}.`,
+  );
+}
+
+async function editExtraImportsSetting(): Promise<void> {
+  const activeDocument = vscode.window.activeTextEditor?.document;
+  const config = vscode.workspace.getConfiguration(
+    EXPORT_CONFIG_SECTION,
+    activeDocument?.uri,
+  );
+  const currentValue = config
+    .get<string>(CONFIG_EXTRA_IMPORTS_FILE, "")
+    ?.trim();
+  const configured = await configureImportsFile(
+    activeDocument,
+    currentValue && currentValue.length > 0 ? currentValue : undefined,
+  );
+  if (!configured) {
+    return;
+  }
+
+  await updateExportSetting(
+    CONFIG_EXTRA_IMPORTS_FILE,
+    configured,
+    activeDocument?.uri,
+  );
+  void vscode.window.showInformationMessage(
+    `Imports file set to ${configured}.`,
+  );
+}
+
+async function updateExportSetting(
+  key: string,
+  value: unknown,
+  uri?: vscode.Uri,
+): Promise<void> {
+  const target = resolveConfigurationTarget(uri);
+  const config = vscode.workspace.getConfiguration(EXPORT_CONFIG_SECTION, uri);
+  let sanitized = value;
+  if (key === CONFIG_EXTRA_IMPORTS_FILE && typeof value === "string") {
+    sanitized = value.trim();
+  }
+  await config.update(key, sanitized, target);
+}
+
+async function configureImportsFile(
+  referenceDocument: vscode.TextDocument | undefined,
+  currentStoredPath: string | undefined,
+): Promise<string | undefined> {
+  const workspaceBase = getWorkspaceBase(referenceDocument?.uri);
+  const fallbackDir = referenceDocument
+    ? path.dirname(referenceDocument.uri.fsPath)
+    : workspaceBase;
+
+  if (!workspaceBase && !fallbackDir) {
+    void vscode.window.showErrorMessage(
+      "Unable to determine a project folder for storing extra imports. Open a workspace or a Typst document first.",
+    );
+    return undefined;
+  }
+
+  if (currentStoredPath && currentStoredPath.length > 0) {
+    const absolutePath = resolveImportsAbsolute(
+      currentStoredPath,
+      workspaceBase,
+      fallbackDir,
+    );
+    await ensureImportsFileExists(absolutePath);
+    await showImportsFile(absolutePath);
+    return makeStoredImportsPath(absolutePath, workspaceBase);
+  }
+
+  const baseDir = workspaceBase ?? fallbackDir!;
+  const defaultPath = path.join(baseDir, "subtree-imports.typ");
+  await fs.mkdir(path.dirname(defaultPath), { recursive: true });
+
+  const saveUri = await vscode.window.showSaveDialog({
+    defaultUri: vscode.Uri.file(defaultPath),
+    filters: { Typst: ["typ"] },
+    saveLabel: "Choose Imports File",
+  });
+
+  if (!saveUri) {
+    return undefined;
+  }
+
+  await ensureImportsFileExists(saveUri.fsPath);
+  await showImportsFile(saveUri.fsPath);
+  return makeStoredImportsPath(saveUri.fsPath, workspaceBase);
+}
+
+function getWorkspaceBase(uri?: vscode.Uri): string | undefined {
+  if (uri) {
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (folder) {
+      return folder.uri.fsPath;
+    }
+  }
+  const first = vscode.workspace.workspaceFolders?.[0];
+  return first?.uri.fsPath;
+}
+
+function resolveImportsAbsolute(
+  storedPath: string,
+  workspaceBase?: string,
+  fallbackDir?: string,
+): string {
+  if (path.isAbsolute(storedPath)) {
+    return storedPath;
+  }
+  if (workspaceBase) {
+    return path.join(workspaceBase, storedPath);
+  }
+  if (fallbackDir) {
+    return path.join(fallbackDir, storedPath);
+  }
+  return path.resolve(storedPath);
+}
+
+function makeStoredImportsPath(
+  absolutePath: string,
+  workspaceBase?: string,
+): string {
+  if (workspaceBase) {
+    const relative = path.relative(workspaceBase, absolutePath);
+    if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
+      return relative;
+    }
+  }
+  return absolutePath;
+}
+
+async function ensureImportsFileExists(filePath: string): Promise<void> {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  try {
+    await fs.access(filePath);
+  } catch {
+    const banner = "// Typst imports for Adjust Heading in Tree\n";
+    await fs.writeFile(filePath, banner, { encoding: "utf8" });
+  }
+}
+
+async function showImportsFile(filePath: string): Promise<void> {
+  const document = await vscode.workspace.openTextDocument(
+    vscode.Uri.file(filePath),
+  );
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    preserveFocus: false,
+  });
+}
+
+async function loadImportsSnippet(
+  document: vscode.TextDocument,
+  storedPath: string | undefined,
+): Promise<string> {
+  if (!storedPath || storedPath.trim().length === 0) {
+    return "";
+  }
+
+  const workspaceBase = getWorkspaceBase(document.uri);
+  const absolutePath = resolveImportsAbsolute(
+    storedPath,
+    workspaceBase,
+    path.dirname(document.uri.fsPath),
+  );
+
+  try {
+    const content = await fs.readFile(absolutePath, { encoding: "utf8" });
+    return normalizeNewlines(content);
+  } catch (error) {
+    throw new ExportError(
+      `Failed to read imports file:\n${absolutePath}\n${String(error)}\nUse "Edit Extra Typst Imports" to recreate it.`,
+    );
+  }
+}
+
 async function configurePdfExport(
-  ctx: ExportCommandContext,
   document: vscode.TextDocument,
   node: HeadingNode,
 ): Promise<PdfSettings | undefined> {
-  const storedExtraImports =
-    ctx.extensionContext.workspaceState.get<string>(EXTRA_IMPORTS_KEY) ?? "";
-
-  let extraImports = storedExtraImports;
+  const config = getExportConfiguration(document);
+  let extraImportsFile = config.extraImportsFile;
   let outputUri = await buildDefaultOutputUri(document, node, "pdf");
 
   while (true) {
@@ -189,11 +464,11 @@ async function configurePdfExport(
         action: "output",
       },
       {
-        label: extraImports
-          ? "$(edit) Extra imports (configured)"
-          : "$(edit) Extra imports (optional)",
+        label: extraImportsFile
+          ? `$(edit) Imports file: ${extraImportsFile}`
+          : "$(edit) Configure imports file…",
         description:
-          "Append Typst import directives before the exported subtree.",
+          "Edit the Typst snippet that will be prepended before export.",
         action: "imports",
       },
       {
@@ -222,18 +497,15 @@ async function configurePdfExport(
     }
 
     if (selection.action === "imports") {
-      const edited = await editExtraImports(document, extraImports);
-      if (edited !== undefined) {
-        extraImports = edited;
-        await ctx.extensionContext.workspaceState.update(
-          EXTRA_IMPORTS_KEY,
-          extraImports,
+      const configured = await configureImportsFile(document, extraImportsFile);
+      if (configured) {
+        extraImportsFile = configured;
+        await updateExportSetting(
+          CONFIG_EXTRA_IMPORTS_FILE,
+          configured,
+          document.uri,
         );
       }
-      continue;
-    }
-
-    if (selection.action === "ppi") {
       continue;
     }
 
@@ -244,21 +516,18 @@ async function configurePdfExport(
       continue;
     }
 
-    return { outputUri, extraImports };
+    return { outputUri, extraImportsFile };
   }
 }
 
 async function configurePngExport(
-  ctx: ExportCommandContext,
   document: vscode.TextDocument,
   node: HeadingNode,
 ): Promise<PngSettings | undefined> {
-  const storedExtraImports =
-    ctx.extensionContext.workspaceState.get<string>(EXTRA_IMPORTS_KEY) ?? "";
-  let extraImports = storedExtraImports;
+  const config = getExportConfiguration(document);
+  let extraImportsFile = config.extraImportsFile;
   let outputUri = await buildDefaultOutputUri(document, node, "png");
-  let ppi =
-    ctx.extensionContext.workspaceState.get<number>(PNG_PPI_KEY) ?? 144;
+  let ppi = config.pngPpi;
 
   while (true) {
     const items: ExportSettingPick[] = [
@@ -275,11 +544,11 @@ async function configurePngExport(
         action: "ppi",
       },
       {
-        label: extraImports
-          ? "$(edit) Extra imports (configured)"
-          : "$(edit) Extra imports (optional)",
+        label: extraImportsFile
+          ? `$(edit) Imports file: ${extraImportsFile}`
+          : "$(edit) Configure imports file…",
         description:
-          "Append Typst import directives before the exported subtree.",
+          "Edit the Typst snippet that will be prepended before export.",
         action: "imports",
       },
       {
@@ -308,12 +577,13 @@ async function configurePngExport(
     }
 
     if (selection.action === "imports") {
-      const edited = await editExtraImports(document, extraImports);
-      if (edited !== undefined) {
-        extraImports = edited;
-        await ctx.extensionContext.workspaceState.update(
-          EXTRA_IMPORTS_KEY,
-          extraImports,
+      const configured = await configureImportsFile(document, extraImportsFile);
+      if (configured) {
+        extraImportsFile = configured;
+        await updateExportSetting(
+          CONFIG_EXTRA_IMPORTS_FILE,
+          configured,
+          document.uri,
         );
       }
       continue;
@@ -323,7 +593,7 @@ async function configurePngExport(
       const edited = await editImagePpi(ppi);
       if (edited !== undefined) {
         ppi = edited;
-        await ctx.extensionContext.workspaceState.update(PNG_PPI_KEY, ppi);
+        await updateExportSetting(CONFIG_PNG_PPI, ppi, document.uri);
       }
       continue;
     }
@@ -335,7 +605,7 @@ async function configurePngExport(
       continue;
     }
 
-    return { outputUri, extraImports, ppi };
+    return { outputUri, extraImportsFile, ppi };
   }
 }
 
@@ -378,40 +648,6 @@ async function buildDefaultOutputUri(
   return vscode.Uri.file(defaultPath);
 }
 
-async function editExtraImports(
-  document: vscode.TextDocument,
-  currentValue: string,
-): Promise<string | undefined> {
-  const snippet = buildDocumentSnippet(document);
-  if (snippet) {
-    try {
-      const preview = await vscode.workspace.openTextDocument({
-        content: snippet,
-        language: document.languageId,
-      });
-      void vscode.window.showTextDocument(preview, {
-        viewColumn: vscode.ViewColumn.Beside,
-        preview: true,
-        preserveFocus: true,
-      });
-    } catch {
-      // best effort preview; ignore failures
-    }
-  }
-
-  const updated = await vscode.window.showInputBox({
-    title: "Extra Typst imports",
-    value: currentValue,
-    prompt:
-      "Paste Typst import directives to prepend to the exported subtree.",
-    valueSelection: [0, currentValue.length],
-    ignoreFocusOut: true,
-    placeHolder: "Example: #import \"./components.typ\": example",
-  });
-
-  return updated === undefined ? undefined : updated;
-}
-
 async function editImagePpi(current: number): Promise<number | undefined> {
   const updated = await vscode.window.showInputBox({
     title: "PNG resolution (ppi)",
@@ -437,21 +673,7 @@ async function editImagePpi(current: number): Promise<number | undefined> {
   return Number(updated);
 }
 
-function buildDocumentSnippet(document: vscode.TextDocument): string | undefined {
-  if (document.lineCount === 0) {
-    return undefined;
-  }
-
-  const snippetLineCount = Math.min(40, document.lineCount);
-  const range = new vscode.Range(
-    new vscode.Position(0, 0),
-    document.lineAt(snippetLineCount - 1).range.end,
-  );
-  return document.getText(range);
-}
-
 async function exportSubtreeAsPdf(
-  ctx: ExportCommandContext,
   document: vscode.TextDocument,
   node: HeadingNode,
   slice: SubtreeSlice,
@@ -465,7 +687,7 @@ async function exportSubtreeAsPdf(
       },
       async (progress) => {
         progress.report({ message: "Preparing content…" });
-        await performPdfExport(ctx, document, slice.text, settings, progress);
+        await performPdfExport(document, slice.text, settings, progress);
       },
     );
     void vscode.window.showInformationMessage(
@@ -477,7 +699,6 @@ async function exportSubtreeAsPdf(
 }
 
 async function exportSubtreeAsPng(
-  ctx: ExportCommandContext,
   document: vscode.TextDocument,
   node: HeadingNode,
   slice: SubtreeSlice,
@@ -491,7 +712,7 @@ async function exportSubtreeAsPng(
       },
       async (progress) => {
         progress.report({ message: "Preparing content…" });
-        await performPngExport(ctx, document, slice.text, settings, progress);
+        await performPngExport(document, slice.text, settings, progress);
       },
     );
     void vscode.window.showInformationMessage(
@@ -515,38 +736,41 @@ function handleExportError(target: "PDF" | "PNG", error: unknown): void {
 }
 
 async function performPdfExport(
-  ctx: ExportCommandContext,
   document: vscode.TextDocument,
   subtreeText: string,
   settings: PdfSettings,
   progress: ProgressReporter,
 ): Promise<void> {
+  const importsText = await loadImportsSnippet(
+    document,
+    settings.extraImportsFile,
+  );
   await ensureOutputDirectory(settings.outputUri);
   progress.report({ message: "Writing temporary Typst document…" });
   const temp = await createTemporaryTypstDocument(
     document,
     subtreeText,
-    settings.extraImports,
+    importsText,
   );
 
+  let shouldCleanup = true;
   try {
-    progress.report({ message: "Running Typst compiler…" });
-    await runTypstCompile(temp.filePath, settings.outputUri, {
-      format: "pdf",
-    });
+    progress.report({ message: "Running Tinymist export…" });
+    const exportedPath = await runTinymistExport("Pdf", temp.filePath);
+    await finalizeExportedFile(exportedPath, settings.outputUri);
+  } catch (error) {
+    shouldCleanup = false;
+    throw enrichExportError(error, temp.filePath);
   } finally {
-    await temp.cleanup();
+    if (shouldCleanup) {
+      await temp.cleanup();
+    }
   }
 }
 
 interface TemporaryTypstDocument {
   filePath: string;
   cleanup: () => Promise<void>;
-}
-
-interface CompileOptions {
-  format: "pdf" | "png";
-  ppi?: number;
 }
 
 async function ensureOutputDirectory(outputUri: vscode.Uri): Promise<void> {
@@ -596,29 +820,6 @@ async function createTemporaryTypstDocument(
   };
 }
 
-async function runTypstCompile(
-  inputPath: string,
-  outputUri: vscode.Uri,
-  options: CompileOptions,
-): Promise<void> {
-  const command = getCompilerCommand();
-  const args = ["compile", inputPath, outputUri.fsPath, `--format=${options.format}`];
-
-  if (options.format === "png" && options.ppi) {
-    args.push(`--ppi=${options.ppi}`);
-  }
-
-  const cwd = path.dirname(inputPath);
-  const result = await spawnWithCapture(command, args, cwd);
-
-  if (result.code !== 0) {
-    const output = result.stderr.trim() || result.stdout.trim();
-    throw new ExportError(
-      `Compiler exited with code ${result.code}.\n${truncate(output, 600)}`,
-    );
-  }
-}
-
 function composeTypstContent(
   subtreeText: string,
   extraImports: string,
@@ -643,94 +844,250 @@ function normalizeNewlines(value: string): string {
   return value.replace(/\r\n/g, "\n");
 }
 
-function getCompilerCommand(): string {
-  const configured =
-    vscode.workspace
-      .getConfiguration("adjustHeadingInTree.export")
-      .get<string>("typstCommand")
-      ?.trim() ?? "";
-  return configured.length > 0 ? configured : "tinymist";
-}
-
-async function spawnWithCapture(
-  command: string,
-  args: string[],
-  cwd: string,
-): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    console.log(`Running command: ${command} ${args.join(" ")}`);
-    const child = spawn(command, args, {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout?.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-    child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    child.on("error", (error) => {
-      const nodeError = error as NodeJS.ErrnoException;
-      if (nodeError.code === "ENOENT") {
-        reject(
-          new ExportError(
-            `Compiler command "${command}" was not found. Set "adjustHeadingInTree.export.typstCommand" to the tinymist or typst executable.`,
-          ),
-        );
-        return;
-      }
-      reject(
-        new ExportError(
-          `Failed to start compiler "${command}": ${nodeError.message}`,
-        ),
-      );
-    });
-
-    child.on("close", (code) => {
-      if (stdout) {
-        console.log(stdout);
-      }
-      if (stderr) {
-        console.error(stderr);
-      }
-      resolve({ code, stdout, stderr });
-    });
-  });
-}
-
-function truncate(value: string, maxLength: number): string {
-  if (value.length <= maxLength) {
-    return value;
-  }
-  return `${value.slice(0, maxLength)}…`;
-}
 async function performPngExport(
-  ctx: ExportCommandContext,
   document: vscode.TextDocument,
   subtreeText: string,
   settings: PngSettings,
   progress: ProgressReporter,
 ): Promise<void> {
+  const importsText = await loadImportsSnippet(
+    document,
+    settings.extraImportsFile,
+  );
   await ensureOutputDirectory(settings.outputUri);
   progress.report({ message: "Writing temporary Typst document…" });
   const temp = await createTemporaryTypstDocument(
     document,
     subtreeText,
-    settings.extraImports,
+    importsText,
   );
 
+  let shouldCleanup = true;
   try {
-    progress.report({ message: "Running Typst compiler…" });
-    await runTypstCompile(temp.filePath, settings.outputUri, {
-      format: "png",
+    progress.report({ message: "Running Tinymist export…" });
+    const exportedPath = await runTinymistExport("Png", temp.filePath, {
       ppi: settings.ppi,
+      page: { merged: { gap: "0pt" } },
     });
+    await finalizeExportedFile(exportedPath, settings.outputUri);
+  } catch (error) {
+    shouldCleanup = false;
+    throw enrichExportError(error, temp.filePath);
   } finally {
-    await temp.cleanup();
+    if (shouldCleanup) {
+      await temp.cleanup();
+    }
   }
+}
+
+async function runTinymistExport(
+  kind: "Pdf" | "Png",
+  tempFilePath: string,
+  options?: Record<string, unknown>,
+): Promise<string> {
+  await ensureTinymistActivated();
+
+  try {
+    const exportedPath = await runTinymistCommand(kind, tempFilePath, options);
+    return ensureExportPath(exportedPath, kind);
+  } catch (primaryError) {
+    if (!(primaryError instanceof ExportError)) {
+      throw primaryError;
+    }
+
+    try {
+      const fallbackPath = await runTinymistExportWithEditor(
+        kind,
+        tempFilePath,
+        options,
+      );
+      return ensureExportPath(fallbackPath, kind);
+    } catch (fallbackError) {
+      if (fallbackError instanceof ExportError) {
+        throw new ExportError(
+          `${primaryError.message}\nFallback attempt failed:\n${fallbackError.message}`,
+        );
+      }
+      throw fallbackError;
+    }
+  }
+}
+
+async function finalizeExportedFile(
+  sourcePath: string,
+  targetUri: vscode.Uri,
+): Promise<void> {
+  await waitForFile(sourcePath);
+
+  const resolvedSource = path.resolve(sourcePath);
+  const resolvedTarget = path.resolve(targetUri.fsPath);
+
+  if (resolvedSource !== resolvedTarget) {
+    await fs.copyFile(resolvedSource, resolvedTarget);
+    await safeRemove(resolvedSource);
+  }
+}
+
+async function waitForFile(
+  filePath: string,
+  attempts = 10,
+  intervalMs = 150,
+): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      await fs.stat(filePath);
+      return;
+    } catch (error) {
+      lastError = error;
+      await delay(intervalMs);
+    }
+  }
+  throw new ExportError(
+    `Tinymist did not produce the expected file:\n${filePath}\n${String(lastError)}`,
+  );
+}
+
+async function ensureTinymistActivated(): Promise<void> {
+  const extension = vscode.extensions.getExtension(TINYMIST_EXTENSION_ID);
+  if (!extension) {
+    throw new ExportError(
+      'Tinymist extension is required. Install "Tinymist Typst" to enable subtree export.',
+    );
+  }
+
+  if (!extension.isActive) {
+    try {
+      await extension.activate();
+    } catch (error) {
+      throw new ExportError(
+        `Failed to activate Tinymist extension:\n${String(error)}`,
+      );
+    }
+  }
+}
+
+async function delay(ms: number): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function safeRemove(filePath: string): Promise<void> {
+  try {
+    await fs.rm(filePath, { force: true });
+  } catch {
+    // ignore cleanup failure
+  }
+}
+
+async function runTinymistCommand(
+  kind: "Pdf" | "Png",
+  inputPath: string,
+  options?: Record<string, unknown>,
+): Promise<unknown> {
+  try {
+    const commandId =
+      kind === "Pdf" ? "tinymist.exportPdf" : "tinymist.exportPng";
+
+    if (options) {
+      return await vscode.commands.executeCommand<unknown>(
+        commandId,
+        inputPath,
+        options,
+      );
+    }
+    return await vscode.commands.executeCommand<unknown>(commandId, inputPath);
+  } catch (error) {
+    throw new ExportError(formatTinymistError(error));
+  }
+}
+
+function formatTinymistError(error: unknown): string {
+  if (error instanceof Error) {
+    const message = (error.message ?? String(error)).trim();
+    return `Tinymist reported an error while exporting:\n${message}`;
+  }
+
+  if (typeof error === "string") {
+    return `Tinymist reported an error while exporting:\n${error.trim()}`;
+  }
+
+  try {
+    return `Tinymist reported an error while exporting:\n${JSON.stringify(error)}`;
+  } catch {
+    return `Tinymist reported an error while exporting:\n${String(error)}`;
+  }
+}
+
+async function runTinymistExportWithEditor(
+  kind: "Pdf" | "Png",
+  tempFilePath: string,
+  options?: Record<string, unknown>,
+): Promise<unknown> {
+  const previousEditor = vscode.window.activeTextEditor;
+  const previousDocument = previousEditor?.document;
+  const previousSelections = previousEditor
+    ? [...previousEditor.selections]
+    : undefined;
+  const previousViewColumn = previousEditor?.viewColumn;
+
+  const tempDocument = await vscode.workspace.openTextDocument(tempFilePath);
+  await vscode.window.showTextDocument(tempDocument, {
+    preview: false,
+    preserveFocus: false,
+    viewColumn: previousViewColumn ?? vscode.ViewColumn.Active,
+  });
+
+  try {
+    if (options) {
+      return await vscode.commands.executeCommand<unknown>(
+        "tinymist.export",
+        kind,
+        options,
+      );
+    }
+    return await vscode.commands.executeCommand<unknown>(
+      "tinymist.export",
+      kind,
+    );
+  } catch (error) {
+    throw new ExportError(formatTinymistError(error));
+  } finally {
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+
+    if (previousDocument) {
+      try {
+        const editor = await vscode.window.showTextDocument(
+          previousDocument,
+          previousViewColumn,
+        );
+        if (previousSelections) {
+          editor.selections = previousSelections;
+        }
+      } catch {
+        // ignore restore failures
+      }
+    }
+  }
+}
+
+function ensureExportPath(
+  result: unknown,
+  kind: "Pdf" | "Png",
+): string {
+  if (typeof result === "string" && result.trim() !== "") {
+    return result;
+  }
+  throw new ExportError(
+    `Tinymist did not return an output path while exporting ${kind}.`,
+  );
+}
+
+function enrichExportError(error: unknown, tempFilePath: string): ExportError {
+  const note = `Temporary Typst file preserved for inspection:\n${tempFilePath}`;
+  if (error instanceof ExportError) {
+    return new ExportError(`${error.message}\n${note}`);
+  }
+  return new ExportError(`${String(error)}\n${note}`);
 }

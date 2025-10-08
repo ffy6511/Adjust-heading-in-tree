@@ -23,7 +23,6 @@
   ],
   "activationEvents": [
     "onCommand:headingNavigator.adjustTreeLevel",
-    "onCommand:headingNavigator.openExportMenu",
     "onCommand:headingNavigator.moveHeadingDown",
     "onCommand:headingNavigator.moveHeadingUp",
     "onCommand:headingNavigator.reveal",
@@ -31,6 +30,9 @@
     "onCommand:headingNavigator.shiftUp",
     "onCommand:headingNavigator.showHelp",
     "onCommand:headingNavigator.toggle",
+    "onCommand:headingNavigator.openExportMenu",
+    "onCommand:headingNavigator.openExportSettings",
+    "onCommand:headingNavigator.editExtraImportsSetting",
     "onView:headingNavigator.headingTree"
   ],
   "main": "./dist/extension.js",
@@ -71,6 +73,16 @@
         "command": "headingNavigator.openExportMenu",
         "title": "Export Heading Subtree",
         "icon": "$(gear)"
+      },
+      {
+        "command": "headingNavigator.openExportSettings",
+        "title": "Adjust Export Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "headingNavigator.editExtraImportsSetting",
+        "title": "Edit Extra Typst Imports",
+        "icon": "$(edit)"
       },
       {
         "command": "headingNavigator.toggle",
@@ -154,6 +166,11 @@
           "command": "headingNavigator.adjustTreeLevel",
           "when": "view == headingNavigator.headingTree",
           "group": "navigation@2"
+        },
+        {
+          "command": "headingNavigator.openExportSettings",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -187,10 +204,18 @@
     "configuration": {
       "title": "Adjust Heading in Tree",
       "properties": {
-        "adjustHeadingInTree.export.typstCommand": {
+        "adjustHeadingInTree.export.extraImportsFile": {
           "type": "string",
-          "default": "tinymist",
-          "markdownDescription": "Command used to compile Typst documents when exporting a subtree. Set this to the full path of `tinymist` or `typst` if the executable is not on your PATH.",
+          "default": "",
+          "markdownDescription": "Path to a Typst file whose contents will be prepended to every exported subtree. Use the [Edit Extra Typst Imports](command:headingNavigator.editExtraImportsSetting) command to create or edit this file.",
+          "scope": "window"
+        },
+        "adjustHeadingInTree.export.pngPpi": {
+          "type": "integer",
+          "default": 144,
+          "minimum": 1,
+          "maximum": 1200,
+          "markdownDescription": "Default rasterization resolution (ppi) used when exporting a subtree as a merged PNG via Tinymist.",
           "scope": "window"
         }
       }

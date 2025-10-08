@@ -1,6 +1,14 @@
 # Changelog
 
-## [0.0.4] -2025-10-01
+## [0.0.5] - 2025-10-8
+
+### Feat
+
+- Add extra imports file setting for subtree export.(Require Tinymist)
+- Allow user to export subtree as PDF or PNG.
+- Add a button on navBar to open the Settings UI.
+
+## [0.0.4] - 2025-10-01
 
 - Replace mp4 with img for the time being.
 
