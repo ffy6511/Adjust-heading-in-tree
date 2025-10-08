@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.0.41",
+  "version": "0.0.5",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -23,6 +23,7 @@
   ],
   "activationEvents": [
     "onCommand:headingNavigator.adjustTreeLevel",
+    "onCommand:headingNavigator.openExportMenu",
     "onCommand:headingNavigator.moveHeadingDown",
     "onCommand:headingNavigator.moveHeadingUp",
     "onCommand:headingNavigator.reveal",
@@ -66,6 +67,11 @@
       ]
     },
     "commands": [
+      {
+        "command": "headingNavigator.openExportMenu",
+        "title": "Export Heading Subtree",
+        "icon": "$(gear)"
+      },
       {
         "command": "headingNavigator.toggle",
         "title": "Toggle Heading Navigator"
@@ -152,6 +158,11 @@
       ],
       "view/item/context": [
         {
+          "command": "headingNavigator.openExportMenu",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "group": "inline@5"
+        },
+        {
           "command": "headingNavigator.shiftUp",
           "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
           "group": "inline@1"
@@ -172,6 +183,17 @@
           "group": "inline@4"
         }
       ]
+    },
+    "configuration": {
+      "title": "Adjust Heading in Tree",
+      "properties": {
+        "adjustHeadingInTree.export.typstCommand": {
+          "type": "string",
+          "default": "tinymist",
+          "markdownDescription": "Command used to compile Typst documents when exporting a subtree. Set this to the full path of `tinymist` or `typst` if the executable is not on your PATH.",
+          "scope": "window"
+        }
+      }
     }
   }
 }

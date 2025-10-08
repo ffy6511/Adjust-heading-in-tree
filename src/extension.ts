@@ -6,6 +6,7 @@ import { registerTreeLevelCommand } from "./commands/treeLevelControl";
 import { registerReorderCommands } from "./commands/reorderHeadings";
 import { registerHelpCommand } from "./commands/showHelp";
 import { HeadingDragAndDropController } from "./dnd/headingDragAndDrop";
+import { registerExportCommands } from "./commands/exportSubtree";
 
 export function activate(context: vscode.ExtensionContext): void {
   const headingProvider = new HeadingProvider();
@@ -60,6 +61,9 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(registerToggleCommand());
   context.subscriptions.push(
     registerTreeLevelCommand(headingProvider, treeView),
+  );
+  context.subscriptions.push(
+    registerExportCommands(headingProvider, treeView, context),
   );
   context.subscriptions.push(registerHelpCommand());
 
