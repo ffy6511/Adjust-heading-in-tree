@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
