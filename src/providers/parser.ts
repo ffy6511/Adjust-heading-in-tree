@@ -19,9 +19,23 @@ const typstHeading = /^(=+)/;
 export function parseHeadings(content: string): HeadingMatch[] {
   const lines = content.split(/\r?\n/);
   const matches: HeadingMatch[] = [];
+  let fence: FenceState | undefined;
 
   for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
     const line = lines[lineNumber];
+    if (fence) {
+      if (isFenceEnd(line, fence)) {
+        fence = undefined;
+      }
+      continue;
+    }
+
+    const fenceStart = detectFenceStart(line);
+    if (fenceStart) {
+      fence = fenceStart;
+      continue;
+    }
+
     const markdownResult = markdownHeading.exec(line);
 
     if (markdownResult) {
@@ -46,6 +60,91 @@ export function parseHeadings(content: string): HeadingMatch[] {
   }
 
   return matches;
+}
+
+interface FenceState {
+  marker: "`" | "~";
+  length: number;
+}
+
+function detectFenceStart(line: string): FenceState | undefined {
+  const normalized = normalizeFenceLine(line);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const marker = matchFenceMarker(normalized);
+  if (!marker) {
+    return undefined;
+  }
+
+  const kind = marker[0] as FenceState["marker"];
+  if (kind !== "`" && kind !== "~") {
+    return undefined;
+  }
+
+  return { marker: kind, length: marker.length };
+}
+
+function isFenceEnd(line: string, fence: FenceState): boolean {
+  const normalized = normalizeFenceLine(line);
+  if (!normalized) {
+    return false;
+  }
+
+  let markerLength = 0;
+  while (
+    markerLength < normalized.length &&
+    normalized[markerLength] === fence.marker
+  ) {
+    markerLength++;
+  }
+
+  if (markerLength < fence.length) {
+    return false;
+  }
+
+  const trailing = normalized.slice(markerLength);
+  return trailing.trim().length === 0;
+}
+
+function normalizeFenceLine(line: string): string {
+  let index = 0;
+  let spaces = 0;
+  while (spaces < 3 && index < line.length && line[index] === " ") {
+    index++;
+    spaces++;
+  }
+
+  let normalized = line.slice(index);
+
+  while (normalized.startsWith(">")) {
+    normalized = normalized.slice(1);
+    while (normalized.startsWith(" ")) {
+      normalized = normalized.slice(1);
+    }
+  }
+
+  return normalized;
+}
+
+function matchFenceMarker(line: string): string | undefined {
+  if (!line.startsWith("```") && !line.startsWith("~~~")) {
+    return undefined;
+  }
+
+  const markerChar = line[0];
+  let length = 0;
+
+  while (length < line.length && line[length] === markerChar) {
+    length++;
+  }
+
+  if (length < 3) {
+    return undefined;
+  }
+
+  return line.slice(0, length);
 }
 
 function parseTypstHeading(
