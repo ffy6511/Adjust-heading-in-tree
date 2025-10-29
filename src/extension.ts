@@ -19,7 +19,6 @@ export function activate(context: vscode.ExtensionContext): void {
     "headingNavigator.headingTree",
     {
       treeDataProvider: headingProvider,
-      showCollapseAll: true,
       canSelectMany: true,
       dragAndDropController,
     },
@@ -27,6 +26,35 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
+
+  const updateHoverArrowsVisibility = () => {
+    const configuration = vscode.workspace.getConfiguration(
+      "adjustHeadingInTree",
+    );
+    const shouldShow = configuration.get<boolean>(
+      "view.showHoverArrows",
+      true,
+    );
+    void vscode.commands.executeCommand(
+      "setContext",
+      "headingNavigator.showHoverArrows",
+      shouldShow,
+    );
+  };
+
+  updateHoverArrowsVisibility();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (
+        event.affectsConfiguration(
+          "adjustHeadingInTree.view.showHoverArrows",
+        )
+      ) {
+        updateHoverArrowsVisibility();
+      }
+    }),
+  );
 
   const syncToEditor = (editor?: vscode.TextEditor) => {
     const activeEditor = editor ?? vscode.window.activeTextEditor;

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.1] - 2025-10-29
+
+### Feat
+
+- Added an option to the settings page: choose whether to display four operation buttons when hovering. Avoid misoperation when the sidebar is narrow;
+
+### Fix
+
+- The expansion issue of the top expansion function
+
+### Chore
+
+- Removed the "Collapse All" button at the top
+
 ## [0.1.0] - 2025-10-8
 
 ### Feat

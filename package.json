@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -181,22 +181,22 @@
         },
         {
           "command": "headingNavigator.shiftUp",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
           "group": "inline@1"
         },
         {
           "command": "headingNavigator.shiftDown",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
           "group": "inline@2"
         },
         {
           "command": "headingNavigator.moveHeadingUp",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
           "group": "inline@3"
         },
         {
           "command": "headingNavigator.moveHeadingDown",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
           "group": "inline@4"
         }
       ]
@@ -204,6 +204,12 @@
     "configuration": {
       "title": "Adjust Heading in Tree",
       "properties": {
+        "adjustHeadingInTree.view.showHoverArrows": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show inline adjustment arrows when hovering over items in the heading tree.",
+          "scope": "window"
+        },
         "adjustHeadingInTree.export.extraImportsFile": {
           "type": "string",
           "default": "",

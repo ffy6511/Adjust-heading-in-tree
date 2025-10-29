@@ -221,17 +221,10 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     return [...this.nodes];
   }
 
-  private filteredChildren(children: HeadingNode[], level: number): HeadingNode[] {
-    if (this.expandedLevel === 0) {
-      return [];
-    }
-
-    if (this.expandedLevel !== undefined && this.expandedLevel !== null) {
-      if (level > this.expandedLevel) {
-        return [];
-      }
-    }
-
+  private filteredChildren(
+    children: HeadingNode[],
+    _level: number,
+  ): HeadingNode[] {
     return children;
   }
 }
