@@ -32,15 +32,22 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
   >();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  private treeView: vscode.TreeView<HeadingNode> | undefined;
   private readonly nodes: HeadingNode[] = [];
   private readonly nodeIndex = new Map<string, HeadingNode>();
   private orderedNodes: HeadingNode[] = [];
   private expandedLevel: number | null | undefined;
   private currentHeadingId: string | undefined;
+  private isFiltered = false;
+  private filterRootNode: HeadingNode | null = null;
 
   constructor() {
     // 如果当前编辑器已有文档，则立即解析一次。
     this.refresh();
+  }
+
+  setTreeView(treeView: vscode.TreeView<HeadingNode>): void {
+    this.treeView = treeView;
   }
 
   getTreeItem(element: HeadingNode): vscode.TreeItem {
@@ -48,6 +55,16 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
   }
 
   getChildren(element?: HeadingNode): HeadingNode[] {
+    if (this.isFiltered) {
+      if (!this.filterRootNode) {
+        return [];
+      }
+      if (!element) {
+        return [this.filterRootNode];
+      }
+      return element.children;
+    }
+
     if (!element) {
       return this.filteredChildren(this.nodes, 1);
     }
@@ -56,6 +73,13 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
   }
 
   getParent(element: HeadingNode): HeadingNode | null {
+    if (this.isFiltered) {
+      if (!this.filterRootNode || this.filterRootNode.id === element.id) {
+        return null;
+      }
+      return findParent([this.filterRootNode], element) ?? null;
+    }
+
     const parent = findParent(this.nodes, element);
     return parent ?? null;
   }
@@ -75,7 +99,16 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     const tree = buildTree(matches);
     this.nodes.push(...tree);
     this.rebuildIndex();
-    this._onDidChangeTreeData.fire();
+
+    if (
+      this.isFiltered &&
+      this.filterRootNode &&
+      !this.nodeIndex.has(this.filterRootNode.id)
+    ) {
+      this.clearFilter();
+    } else {
+      this._onDidChangeTreeData.fire();
+    }
   }
 
   /**
@@ -111,6 +144,19 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     }
 
     const node = this.findNearestNode(line);
+
+    if (
+      this.isFiltered &&
+      this.filterRootNode &&
+      node &&
+      !isDescendant(this.filterRootNode, node)
+    ) {
+      const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+      if (config.get<boolean>("behavior.autoClearFilterOnCursorMove", true)) {
+        this.clearFilter();
+      }
+    }
+
     if (!node) {
       if (previousId) {
         const previousNode = this.nodeIndex.get(previousId);
@@ -130,6 +176,13 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
       }
       changed.push(node);
       this._onDidChangeTreeData.fire(changed);
+      if (this.treeView) {
+        void this.treeView.reveal(node, {
+          expand: true,
+          select: false,
+          focus: false,
+        });
+      }
     }
 
     return node;
@@ -143,19 +196,51 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     return this.nodeIndex.get(this.currentHeadingId);
   }
 
+  filterToNode(node: HeadingNode): void {
+    this.isFiltered = true;
+    this.filterRootNode = node;
+    void vscode.commands.executeCommand(
+      "setContext",
+      "headingNavigator.isFiltered",
+      true,
+    );
+    this._onDidChangeTreeData.fire();
+  }
+
+  clearFilter(): void {
+    this.isFiltered = false;
+    this.filterRootNode = null;
+    void vscode.commands.executeCommand(
+      "setContext",
+      "headingNavigator.isFiltered",
+      false,
+    );
+    this._onDidChangeTreeData.fire();
+  }
+
+  isFilteredToNode(node: HeadingNode): boolean {
+    return this.isFiltered && this.filterRootNode?.id === node.id;
+  }
+
   private createTreeItem(node: HeadingNode): HeadingTreeItem {
     const collapsibleState =
       node.children.length === 0
         ? vscode.TreeItemCollapsibleState.None
         : this.resolveCollapsibleState(node.level);
     const isCurrent = node.id === this.currentHeadingId;
+    const isFilterRoot = this.isFilteredToNode(node);
     const displayLabel = formatLabel(node);
+    const contextValue = `headingNavigator.heading${
+      isFilterRoot ? ".isFilterRoot" : ""
+    }`;
+
     return new HeadingTreeItem(
       node,
       collapsibleState,
       displayLabel,
       isCurrent,
       getLevelIcon(node.level, isCurrent),
+      contextValue,
     );
   }
 
@@ -217,6 +302,34 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     return [...this.orderedNodes];
   }
 
+  findAncestorByLevel(
+    startNode: HeadingNode,
+    level: number,
+  ): HeadingNode | null {
+    let currentNode: HeadingNode | null = startNode;
+    let bestMatch: HeadingNode | null = null;
+
+    if (currentNode.level <= level) {
+      bestMatch = currentNode;
+    }
+
+    while (currentNode) {
+      const parent = this.getParent(currentNode);
+      if (parent) {
+        if (parent.level <= level) {
+          bestMatch = parent;
+        }
+        if (parent.level === level) {
+          return parent;
+        }
+        currentNode = parent;
+      } else {
+        break;
+      }
+    }
+    return bestMatch;
+  }
+
   getRootNodes(): HeadingNode[] {
     return [...this.nodes];
   }
@@ -236,6 +349,7 @@ class HeadingTreeItem extends vscode.TreeItem {
     label: string,
     isCurrent: boolean,
     iconSet: { light: vscode.Uri; dark: vscode.Uri },
+    contextValue: string,
   ) {
     super(label, collapsibleState);
     this.description = undefined;
@@ -244,7 +358,7 @@ class HeadingTreeItem extends vscode.TreeItem {
       title: "Reveal Heading",
       arguments: [node.range],
     };
-    this.contextValue = "headingNavigator.heading";
+    this.contextValue = contextValue;
     this.iconPath = iconSet;
     this.tooltip = `${node.label}\nLevel: ${node.level}\nType: ${node.kind === "markdown" ? "Markdown" : "Typst"}\nDrag anywhere on the row to reorder.`;
     this.id = node.id;
@@ -332,4 +446,16 @@ function getLevelIcon(
   const iconSet = { light: uri, dark: uri };
   levelIconCache.set(key, iconSet);
   return iconSet;
+}
+
+function isDescendant(parent: HeadingNode, child: HeadingNode): boolean {
+  if (parent.id === child.id) {
+    return true;
+  }
+  for (const directChild of parent.children) {
+    if (isDescendant(directChild, child)) {
+      return true;
+    }
+  }
+  return false;
 }

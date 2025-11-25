@@ -24,6 +24,8 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   );
 
+  headingProvider.setTreeView(treeView);
+
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
 
@@ -70,6 +72,33 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.filterToAncestor",
+      async (args: { level: number }) => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          return;
+        }
+
+        const line = editor.selection.active.line;
+        const currentNode = headingProvider.setCurrentHeadingByLine(line);
+        if (!currentNode) {
+          return;
+        }
+
+        const ancestor = headingProvider.findAncestorByLevel(
+          currentNode,
+          args.level,
+        );
+
+        if (ancestor) {
+          headingProvider.filterToNode(ancestor);
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
       const activeDocument = vscode.window.activeTextEditor?.document;
       if (
@@ -94,6 +123,24 @@ export function activate(context: vscode.ExtensionContext): void {
     registerExportCommands(headingProvider, treeView),
   );
   context.subscriptions.push(registerHelpCommand());
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.filterToSubtree",
+      (node: HeadingNode) => {
+        headingProvider.filterToNode(node);
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.clearFilter",
+      () => {
+        headingProvider.clearFilter();
+      },
+    ),
+  );
 
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((event) => {

@@ -33,6 +33,8 @@
     "onCommand:headingNavigator.openExportMenu",
     "onCommand:headingNavigator.openExportSettings",
     "onCommand:headingNavigator.editExtraImportsSetting",
+    "onCommand:headingNavigator.filterToSubtree",
+    "onCommand:headingNavigator.clearFilter",
     "onView:headingNavigator.headingTree"
   ],
   "main": "./dist/extension.js",
@@ -121,6 +123,18 @@
         "command": "headingNavigator.showHelp",
         "title": "Adjust Heading Tree Help",
         "icon": "$(question)"
+      },
+      {
+        "command": "headingNavigator.filterToSubtree",
+        "title": "Filter to Subtree"
+      },
+      {
+        "command": "headingNavigator.clearFilter",
+        "title": "Clear Subtree Filter"
+      },
+      {
+        "command": "headingNavigator.filterToAncestor",
+        "title": "Filter to Ancestor Heading"
       }
     ],
     "keybindings": [
@@ -153,10 +167,57 @@
         "key": "ctrl+shift+down",
         "mac": "cmd+shift+down",
         "when": "focusedView == headingNavigator.headingTree"
+      },
+      {
+        "command": "headingNavigator.clearFilter",
+        "key": "ctrl+alt+0",
+        "mac": "cmd+option+0",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "headingNavigator.filterToAncestor",
+        "key": "ctrl+alt+1",
+        "mac": "cmd+option+1",
+        "when": "editorTextFocus",
+        "args": { "level": 1 }
+      },
+      {
+        "command": "headingNavigator.filterToAncestor",
+        "key": "ctrl+alt+2",
+        "mac": "cmd+option+2",
+        "when": "editorTextFocus",
+        "args": { "level": 2 }
+      },
+      {
+        "command": "headingNavigator.filterToAncestor",
+        "key": "ctrl+alt+3",
+        "mac": "cmd+option+3",
+        "when": "editorTextFocus",
+        "args": { "level": 3 }
+      },
+      {
+        "command": "headingNavigator.filterToAncestor",
+        "key": "ctrl+alt+4",
+        "mac": "cmd+option+4",
+        "when": "editorTextFocus",
+        "args": { "level": 4 }
+      },
+      {
+        "command": "headingNavigator.filterToAncestor",
+        "key": "ctrl+alt+5",
+        "mac": "cmd+option+5",
+        "when": "editorTextFocus",
+        "args": { "level": 5 }
       }
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "headingNavigator.clearFilter",
+          "when": "view == headingNavigator.headingTree && headingNavigator.isFiltered",
+          "group": "navigation@0",
+          "icon": "$(close)"
+        },
         {
           "command": "headingNavigator.showHelp",
           "when": "view == headingNavigator.headingTree",
@@ -198,12 +259,28 @@
           "command": "headingNavigator.moveHeadingDown",
           "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
           "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.filterToSubtree",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && !headingNavigator.isFiltered",
+          "group": "navigation@1"
+        },
+        {
+          "command": "headingNavigator.clearFilter",
+          "when": "view == headingNavigator.headingTree && viewItem == 'headingNavigator.heading.isFilterRoot' && headingNavigator.isFiltered",
+          "group": "navigation@2"
         }
       ]
     },
     "configuration": {
       "title": "Adjust Heading in Tree",
       "properties": {
+        "adjustHeadingInTree.behavior.autoClearFilterOnCursorMove": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Automatically clear the subtree filter when the cursor moves to a heading outside of the filtered view.",
+          "scope": "window"
+        },
         "adjustHeadingInTree.view.showHoverArrows": {
           "type": "boolean",
           "default": true,
