@@ -247,6 +247,21 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  // 监听活动编辑器切换事件
+  // 当用户切换到不同的文件时，重新解析新文件的标题结构并更新树形视图
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        // 切换到新的编辑器，刷新树形视图以显示新文件的目录结构
+        headingProvider.refresh(editor.document);
+        syncToEditor(editor);
+      } else {
+        // 没有活动编辑器（如关闭了所有文件），清空树形视图
+        headingProvider.refresh(undefined);
+      }
+    })
+  );
+
   syncToEditor();
 
   const revealDisposable = vscode.commands.registerCommand(

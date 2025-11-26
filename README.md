@@ -62,6 +62,7 @@ Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. 
 <div align="center">
   <img src="./resources/imgs/cover.png" alt="cover" width="90%">
 </div>
+
 ### Shortcuts and Customization
 
 #### Custom Hover Toolbar
@@ -69,7 +70,6 @@ Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. 
 <div align="center">
   <img src="./resources/imgs/hover-setting.png" alt="cover" width="90%">
 </div>
-
 
 You can now customize the hover toolbar that appears when hovering over items. Drag to add, remove, and reorder items to build your perfect workspace!
 
