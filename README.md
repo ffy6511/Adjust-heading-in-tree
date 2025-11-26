@@ -12,6 +12,7 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
 - **拖拽重排**：在树中拖动标题即可连同子树移动到新位置，保持文档结构一致；
 - **同级快速排序**：通过内联按钮或快捷键在同一父级内向上/向下移动标题块；
 - **批量层级调整**：整体提升或降低选中标题及其子树的层级；
+- **范围筛选显示**：筛选显示特定标题及其子树，或筛选到指定层级的祖先标题，快速聚焦文档区域；
 - **层级显示控制**：使用工具栏按钮设置导航树的最大展开层级；
 - **导出子树**：单独将选中的标题子树导出为 PDF 或 PNG 图片，方便分享或进一步处理(需要安装 Tinymist)；
 
@@ -19,7 +20,16 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
   <img src="./resources/imgs/cover.png" alt="cover" width="90%">
 </div>
 
-### 快捷键
+### 快捷键与自定义面板
+
+#### 自定义 hover 栏
+
+<div align="center">
+  <img src="./resources/imgs/hover-setting.png" alt="cover" width="90%">
+</div>
+现在您可以自定义hover到item上的Toolbar,通过拖拽来添加、删除和排序. 构建自己的工作区!
+
+#### 快捷键支持
 
 | 操作              | Windows / Linux    | macOS             |
 | ----------------- | ------------------ | ----------------- |
@@ -45,14 +55,25 @@ Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. 
 - **Drag-and-drop reorder**: Move a heading and its subtree to a new location while preserving document structure.
 - **Peer-level quick sort**: Use inline buttons or shortcuts to move a heading block up or down within the same parent.
 - **Batch hierarchy shift**: Promote or demote selected headings together with their subtrees in one action.
+- **Scope filtering display**: Filter to show a specific heading and its subtree, or filter to ancestor headings at a specified level for quick document focus.
 - **Hierarchy depth control**: Set the maximum expanded level of the navigation tree via toolbar buttons.
 - **Subtree export**: Export a heading subtree as a PDF or PNG image for sharing or further processing(requires Tinymist).
 
 <div align="center">
   <img src="./resources/imgs/cover.png" alt="cover" width="90%">
 </div>
+### Shortcuts and Customization
 
-### Shortcuts
+#### Custom Hover Toolbar
+
+<div align="center">
+  <img src="./resources/imgs/hover-setting.png" alt="cover" width="90%">
+</div>
+
+
+You can now customize the hover toolbar that appears when hovering over items. Drag to add, remove, and reorder items to build your perfect workspace!
+
+#### Shortcuts
 
 | Action                 | Windows / Linux    | macOS             |
 | ---------------------- | ------------------ | ----------------- |

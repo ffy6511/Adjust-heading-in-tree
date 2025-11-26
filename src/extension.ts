@@ -30,21 +30,17 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
 
-  const updateHoverToolbar = () => {
-    const configuration = vscode.workspace.getConfiguration(
-      "adjustHeadingInTree"
-    );
-    // Legacy support: if the new setting is not present or empty, check the old boolean
-    // However, since we are defining a default for the new setting, it should pick that up.
-    // Let's just use the new setting.
-    const buttons = configuration.get<string[]>("view.hoverToolbar", [
+  const updateHoverToolbar = async () => {
+    // Since view.hoverToolbar is no longer available in settings UI,
+    // use hardcoded default configuration
+    const buttons = [
       "shiftUp",
       "shiftDown",
       "moveHeadingUp",
       "moveHeadingDown",
       "filterToSubtree",
       "openExportMenu",
-    ]);
+    ];
 
     // We support up to 6 slots for now
     for (let i = 0; i < 6; i++) {
@@ -57,12 +53,34 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  // Initial update
   updateHoverToolbar();
 
+  // Listen for configuration changes from the webview (settings are still stored but not shown in UI)
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("adjustHeadingInTree.view.hoverToolbar")) {
-        updateHoverToolbar();
+        // Read from webview settings and update toolbar
+        const configuration = vscode.workspace.getConfiguration(
+          "adjustHeadingInTree"
+        );
+        const buttons = configuration.get<string[]>("view.hoverToolbar", [
+          "shiftUp",
+          "shiftDown",
+          "moveHeadingUp",
+          "moveHeadingDown",
+          "filterToSubtree",
+          "openExportMenu",
+        ]);
+
+        for (let i = 0; i < 6; i++) {
+          const button = i < buttons.length ? buttons[i] : undefined;
+          void vscode.commands.executeCommand(
+            "setContext",
+            `headingNavigator.hoverButton.${i}`,
+            button
+          );
+        }
       }
     })
   );

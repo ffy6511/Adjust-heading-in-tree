@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0] - 2025-11-26
+
+### Feat
+
+- Add the "range filter display" function: allow users to select specific titles, filter the subtitles they contain, and display the subtrees of the area concisely and clearly;
+
+- Allow users to enter level through the command panel and display the range from the current cursor;
+
+- Build a new toolbar setting panel and adjust the hover display logic. Allow users to customize the toolbar displayed by hover by dragging and dropping.
+
+<div align="center">
+  <img src="./resources/imgs/hover-setting.png" alt="cover" width="50%">
+</div>
+
+### style
+
+- Optimize the selection of some icons
+
 ## [0.1.1] - 2025-10-29
 
 ### Feat

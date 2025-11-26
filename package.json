@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -74,7 +74,7 @@
       {
         "command": "headingNavigator.openExportMenu",
         "title": "Export Heading Subtree",
-        "icon": "$(gear)"
+        "icon": "$(file-pdf)"
       },
       {
         "command": "headingNavigator.openExportSettings",
@@ -413,6 +413,20 @@
           "markdownDescription": "Automatically clear the subtree filter when the cursor moves to a heading outside of the filtered view.",
           "scope": "window"
         },
+        "adjustHeadingInTree.export.extraImportsFile": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to a Typst file whose contents will be prepended to every exported subtree. Use the [Edit Extra Typst Imports](command:headingNavigator.editExtraImportsSetting) command to create or edit this file.",
+          "scope": "window"
+        },
+        "adjustHeadingInTree.export.pngPpi": {
+          "type": "integer",
+          "default": 144,
+          "minimum": 1,
+          "maximum": 1200,
+          "markdownDescription": "Default rasterization resolution (ppi) used when exporting a subtree as a merged PNG via Tinymist.",
+          "scope": "window"
+        },
         "adjustHeadingInTree.view.hoverToolbar": {
           "type": "array",
           "default": [
@@ -432,31 +446,11 @@
               "moveHeadingDown",
               "filterToSubtree",
               "openExportMenu"
-            ],
-            "markdownEnumDescriptions": [
-              "$(triangle-left) **Shift Up**: Increase heading level (e.g., h2 -> h1)",
-              "$(triangle-right) **Shift Down**: Decrease heading level (e.g., h1 -> h2)",
-              "$(fold-up) **Move Up**: Move heading up within the same parent",
-              "$(fold-down) **Move Down**: Move heading down within the same parent",
-              "$(filter) **Filter Subtree**: Show only this heading and its children",
-              "$(gear) **Export**: Open export options for this subtree"
             ]
           },
-          "markdownDescription": "Customize the buttons shown when hovering over an item in the heading tree. You can reorder them or remove the ones you don't need.",
-          "scope": "window"
-        },
-        "adjustHeadingInTree.export.extraImportsFile": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "Path to a Typst file whose contents will be prepended to every exported subtree. Use the [Edit Extra Typst Imports](command:headingNavigator.editExtraImportsSetting) command to create or edit this file.",
-          "scope": "window"
-        },
-        "adjustHeadingInTree.export.pngPpi": {
-          "type": "integer",
-          "default": 144,
-          "minimum": 1,
-          "maximum": 1200,
-          "markdownDescription": "Default rasterization resolution (ppi) used when exporting a subtree as a merged PNG via Tinymist.",
+          "order": 999,
+          "isHidden": true,
+          "markdownDescription": "**Deprecated**: Use the 'Configure Hover Toolbar' command instead. This setting is managed through the webview interface.",
           "scope": "window"
         }
       }
