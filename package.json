@@ -228,12 +228,12 @@
         },
         {
           "command": "headingNavigator.filterToSubtree",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && !headingNavigator.isFiltered",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
           "group": "navigation@1"
         },
         {
           "command": "headingNavigator.clearFilter",
-          "when": "view == headingNavigator.headingTree && viewItem == 'headingNavigator.heading.isFilterRoot' && headingNavigator.isFiltered",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.isFiltered",
           "group": "navigation@2"
         }
       ]
