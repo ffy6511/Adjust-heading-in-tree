@@ -7,6 +7,7 @@ import { registerReorderCommands } from "./commands/reorderHeadings";
 import { registerHelpCommand } from "./commands/showHelp";
 import { HeadingDragAndDropController } from "./dnd/headingDragAndDrop";
 import { registerExportCommands } from "./commands/exportSubtree";
+import { HoverSettingsPanel } from "./webview/hoverSettings";
 
 export function activate(context: vscode.ExtensionContext): void {
   const headingProvider = new HeadingProvider();
@@ -29,26 +30,39 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
 
-  const updateHoverArrowsVisibility = () => {
+  const updateHoverToolbar = () => {
     const configuration = vscode.workspace.getConfiguration(
       "adjustHeadingInTree"
     );
-    const shouldShow = configuration.get<boolean>("view.showHoverArrows", true);
-    void vscode.commands.executeCommand(
-      "setContext",
-      "headingNavigator.showHoverArrows",
-      shouldShow
-    );
+    // Legacy support: if the new setting is not present or empty, check the old boolean
+    // However, since we are defining a default for the new setting, it should pick that up.
+    // Let's just use the new setting.
+    const buttons = configuration.get<string[]>("view.hoverToolbar", [
+      "shiftUp",
+      "shiftDown",
+      "moveHeadingUp",
+      "moveHeadingDown",
+      "filterToSubtree",
+      "openExportMenu",
+    ]);
+
+    // We support up to 6 slots for now
+    for (let i = 0; i < 6; i++) {
+      const button = i < buttons.length ? buttons[i] : undefined;
+      void vscode.commands.executeCommand(
+        "setContext",
+        `headingNavigator.hoverButton.${i}`,
+        button
+      );
+    }
   };
 
-  updateHoverArrowsVisibility();
+  updateHoverToolbar();
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (
-        event.affectsConfiguration("adjustHeadingInTree.view.showHoverArrows")
-      ) {
-        updateHoverArrowsVisibility();
+      if (event.affectsConfiguration("adjustHeadingInTree.view.hoverToolbar")) {
+        updateHoverToolbar();
       }
     })
   );
@@ -182,6 +196,15 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   context.subscriptions.push(registerExportCommands(headingProvider, treeView));
   context.subscriptions.push(registerHelpCommand());
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.openHoverSettings",
+      () => {
+        HoverSettingsPanel.createOrShow(context.extensionUri);
+      }
+    )
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(

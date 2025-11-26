@@ -126,7 +126,8 @@
       },
       {
         "command": "headingNavigator.filterToSubtree",
-        "title": "Filter to Subtree"
+        "title": "Filter to Subtree",
+        "icon": "$(filter)"
       },
       {
         "command": "headingNavigator.clearFilter",
@@ -136,6 +137,11 @@
       {
         "command": "headingNavigator.filterToAncestor",
         "title": "Filter to Ancestor Heading"
+      },
+      {
+        "command": "headingNavigator.openHoverSettings",
+        "title": "Configure Hover Toolbar",
+        "icon": "$(tools)"
       }
     ],
     "keybindings": [
@@ -198,33 +204,193 @@
           "command": "headingNavigator.openExportSettings",
           "when": "view == headingNavigator.headingTree",
           "group": "navigation@3"
+        },
+        {
+          "command": "headingNavigator.openHoverSettings",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
         {
-          "command": "headingNavigator.openExportMenu",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading",
-          "group": "inline@5"
+          "command": "headingNavigator.shiftUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'shiftUp'",
+          "group": "inline@0"
         },
         {
           "command": "headingNavigator.shiftUp",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'shiftUp'",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.shiftUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'shiftUp'",
+          "group": "inline@2"
+        },
+        {
+          "command": "headingNavigator.shiftUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'shiftUp'",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.shiftUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'shiftUp'",
+          "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.shiftUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'shiftUp'",
+          "group": "inline@5"
+        },
+        {
+          "command": "headingNavigator.shiftDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'shiftDown'",
+          "group": "inline@0"
+        },
+        {
+          "command": "headingNavigator.shiftDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'shiftDown'",
           "group": "inline@1"
         },
         {
           "command": "headingNavigator.shiftDown",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'shiftDown'",
+          "group": "inline@2"
+        },
+        {
+          "command": "headingNavigator.shiftDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'shiftDown'",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.shiftDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'shiftDown'",
+          "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.shiftDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'shiftDown'",
+          "group": "inline@5"
+        },
+        {
+          "command": "headingNavigator.moveHeadingUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'moveHeadingUp'",
+          "group": "inline@0"
+        },
+        {
+          "command": "headingNavigator.moveHeadingUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'moveHeadingUp'",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.moveHeadingUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'moveHeadingUp'",
           "group": "inline@2"
         },
         {
           "command": "headingNavigator.moveHeadingUp",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'moveHeadingUp'",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.moveHeadingUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'moveHeadingUp'",
+          "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.moveHeadingUp",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'moveHeadingUp'",
+          "group": "inline@5"
+        },
+        {
+          "command": "headingNavigator.moveHeadingDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'moveHeadingDown'",
+          "group": "inline@0"
+        },
+        {
+          "command": "headingNavigator.moveHeadingDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'moveHeadingDown'",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.moveHeadingDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'moveHeadingDown'",
+          "group": "inline@2"
+        },
+        {
+          "command": "headingNavigator.moveHeadingDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'moveHeadingDown'",
           "group": "inline@3"
         },
         {
           "command": "headingNavigator.moveHeadingDown",
-          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.showHoverArrows",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'moveHeadingDown'",
           "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.moveHeadingDown",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'moveHeadingDown'",
+          "group": "inline@5"
+        },
+        {
+          "command": "headingNavigator.filterToSubtree",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'filterToSubtree'",
+          "group": "inline@0"
+        },
+        {
+          "command": "headingNavigator.filterToSubtree",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'filterToSubtree'",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.filterToSubtree",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'filterToSubtree'",
+          "group": "inline@2"
+        },
+        {
+          "command": "headingNavigator.filterToSubtree",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'filterToSubtree'",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.filterToSubtree",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'filterToSubtree'",
+          "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.filterToSubtree",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'filterToSubtree'",
+          "group": "inline@5"
+        },
+        {
+          "command": "headingNavigator.openExportMenu",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'openExportMenu'",
+          "group": "inline@0"
+        },
+        {
+          "command": "headingNavigator.openExportMenu",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'openExportMenu'",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.openExportMenu",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'openExportMenu'",
+          "group": "inline@2"
+        },
+        {
+          "command": "headingNavigator.openExportMenu",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'openExportMenu'",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.openExportMenu",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'openExportMenu'",
+          "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.openExportMenu",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'openExportMenu'",
+          "group": "inline@5"
         },
         {
           "command": "headingNavigator.filterToSubtree",
@@ -247,10 +413,36 @@
           "markdownDescription": "Automatically clear the subtree filter when the cursor moves to a heading outside of the filtered view.",
           "scope": "window"
         },
-        "adjustHeadingInTree.view.showHoverArrows": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "Show inline adjustment arrows when hovering over items in the heading tree.",
+        "adjustHeadingInTree.view.hoverToolbar": {
+          "type": "array",
+          "default": [
+            "shiftUp",
+            "shiftDown",
+            "moveHeadingUp",
+            "moveHeadingDown",
+            "filterToSubtree",
+            "openExportMenu"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "shiftUp",
+              "shiftDown",
+              "moveHeadingUp",
+              "moveHeadingDown",
+              "filterToSubtree",
+              "openExportMenu"
+            ],
+            "markdownEnumDescriptions": [
+              "$(triangle-left) **Shift Up**: Increase heading level (e.g., h2 -> h1)",
+              "$(triangle-right) **Shift Down**: Decrease heading level (e.g., h1 -> h2)",
+              "$(fold-up) **Move Up**: Move heading up within the same parent",
+              "$(fold-down) **Move Down**: Move heading down within the same parent",
+              "$(filter) **Filter Subtree**: Show only this heading and its children",
+              "$(gear) **Export**: Open export options for this subtree"
+            ]
+          },
+          "markdownDescription": "Customize the buttons shown when hovering over an item in the heading tree. You can reorder them or remove the ones you don't need.",
           "scope": "window"
         },
         "adjustHeadingInTree.export.extraImportsFile": {
@@ -269,5 +461,8 @@
         }
       }
     }
+  },
+  "dependencies": {
+    "@vscode/codicons": "^0.0.43"
   }
 }
