@@ -1,10 +1,11 @@
 # Changelog
 
-## [0.2.1] - 2025-11-26
+## [0.2.2] - 2025-11-26
 
 ### Fixed
 
 - Fixed the problem that sometimes TOC could not be switched correctly when switching files.
+- Keep the codicons module to ensure the correct display of icon
 
 ## [0.2.0] - 2025-11-26
 

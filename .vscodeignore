@@ -1,4 +1,8 @@
-node_modules
+# 排除 node_modules，但保留 @vscode/codicons（webview 中需要使用其 CSS 和字体文件）
+node_modules/**
+!node_modules/@vscode/
+!node_modules/@vscode/codicons/
+!node_modules/@vscode/codicons/**
 out
 src
 .vscode-test
@@ -6,3 +10,4 @@ src
 .gitignore
 work_log.md
 initial_plan.md
+*.vsix
