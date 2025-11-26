@@ -18,7 +18,7 @@ const LEVEL_ICON_DIR = path.join(
   "..",
   "resources",
   "icons",
-  "levels",
+  "levels"
 );
 
 const levelIconCache = new Map<
@@ -202,7 +202,7 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     void vscode.commands.executeCommand(
       "setContext",
       "headingNavigator.isFiltered",
-      true,
+      true
     );
     this._onDidChangeTreeData.fire();
   }
@@ -213,7 +213,7 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
     void vscode.commands.executeCommand(
       "setContext",
       "headingNavigator.isFiltered",
-      false,
+      false
     );
     this._onDidChangeTreeData.fire();
   }
@@ -240,12 +240,12 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
       displayLabel,
       isCurrent,
       getLevelIcon(node.level, isCurrent),
-      contextValue,
+      contextValue
     );
   }
 
   private resolveCollapsibleState(
-    level: number,
+    level: number
   ): vscode.TreeItemCollapsibleState {
     if (this.expandedLevel === undefined) {
       return vscode.TreeItemCollapsibleState.Collapsed;
@@ -304,22 +304,20 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
 
   findAncestorByLevel(
     startNode: HeadingNode,
-    level: number,
+    level: number
   ): HeadingNode | null {
     let currentNode: HeadingNode | null = startNode;
-    let bestMatch: HeadingNode | null = null;
 
+    // 如果当前节点就是目标level或更小，返回它
     if (currentNode.level <= level) {
-      bestMatch = currentNode;
+      return currentNode;
     }
 
+    // 向上查找最近的level === target或level < target的祖先
     while (currentNode) {
       const parent = this.getParent(currentNode);
       if (parent) {
         if (parent.level <= level) {
-          bestMatch = parent;
-        }
-        if (parent.level === level) {
           return parent;
         }
         currentNode = parent;
@@ -327,7 +325,8 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
         break;
       }
     }
-    return bestMatch;
+
+    return null;
   }
 
   getRootNodes(): HeadingNode[] {
@@ -336,7 +335,7 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
 
   private filteredChildren(
     children: HeadingNode[],
-    _level: number,
+    _level: number
   ): HeadingNode[] {
     return children;
   }
@@ -349,7 +348,7 @@ class HeadingTreeItem extends vscode.TreeItem {
     label: string,
     isCurrent: boolean,
     iconSet: { light: vscode.Uri; dark: vscode.Uri },
-    contextValue: string,
+    contextValue: string
   ) {
     super(label, collapsibleState);
     this.description = undefined;
@@ -360,7 +359,9 @@ class HeadingTreeItem extends vscode.TreeItem {
     };
     this.contextValue = contextValue;
     this.iconPath = iconSet;
-    this.tooltip = `${node.label}\nLevel: ${node.level}\nType: ${node.kind === "markdown" ? "Markdown" : "Typst"}\nDrag anywhere on the row to reorder.`;
+    this.tooltip = `${node.label}\nLevel: ${node.level}\nType: ${
+      node.kind === "markdown" ? "Markdown" : "Typst"
+    }\nDrag anywhere on the row to reorder.`;
     this.id = node.id;
   }
 }
@@ -397,7 +398,7 @@ function buildTree(matches: HeadingMatch[]): HeadingNode[] {
 
 function findParent(
   haystack: HeadingNode[],
-  target: HeadingNode,
+  target: HeadingNode
 ): HeadingNode | undefined {
   for (const node of haystack) {
     if (node.children.includes(target)) {
@@ -431,7 +432,7 @@ function flattenNodes(nodes: HeadingNode[], receiver: HeadingNode[]): void {
 
 function getLevelIcon(
   level: number,
-  isCurrent: boolean,
+  isCurrent: boolean
 ): { light: vscode.Uri; dark: vscode.Uri } {
   const clampedLevel = Math.max(1, Math.min(6, level));
   const key = `${clampedLevel}-${isCurrent ? "current" : "default"}`;

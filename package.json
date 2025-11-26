@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -130,7 +130,8 @@
       },
       {
         "command": "headingNavigator.clearFilter",
-        "title": "Clear Subtree Filter"
+        "title": "Clear Subtree Filter",
+        "icon": "$(close)"
       },
       {
         "command": "headingNavigator.filterToAncestor",
@@ -173,41 +174,6 @@
         "key": "ctrl+alt+0",
         "mac": "cmd+option+0",
         "when": "editorTextFocus"
-      },
-      {
-        "command": "headingNavigator.filterToAncestor",
-        "key": "ctrl+alt+1",
-        "mac": "cmd+option+1",
-        "when": "editorTextFocus",
-        "args": { "level": 1 }
-      },
-      {
-        "command": "headingNavigator.filterToAncestor",
-        "key": "ctrl+alt+2",
-        "mac": "cmd+option+2",
-        "when": "editorTextFocus",
-        "args": { "level": 2 }
-      },
-      {
-        "command": "headingNavigator.filterToAncestor",
-        "key": "ctrl+alt+3",
-        "mac": "cmd+option+3",
-        "when": "editorTextFocus",
-        "args": { "level": 3 }
-      },
-      {
-        "command": "headingNavigator.filterToAncestor",
-        "key": "ctrl+alt+4",
-        "mac": "cmd+option+4",
-        "when": "editorTextFocus",
-        "args": { "level": 4 }
-      },
-      {
-        "command": "headingNavigator.filterToAncestor",
-        "key": "ctrl+alt+5",
-        "mac": "cmd+option+5",
-        "when": "editorTextFocus",
-        "args": { "level": 5 }
       }
     ],
     "menus": {
