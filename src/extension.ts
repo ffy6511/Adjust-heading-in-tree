@@ -14,6 +14,7 @@ import { HoverSettingsPanel } from "./webview/hoverSettings";
 import { TagIndexService } from "./services/tagIndexService";
 import { TagViewProvider } from "./webview/tagView";
 import { registerEditTagsCommand } from "./commands/editTags";
+import { TagDefinitionsPanel } from "./webview/tagDefinitionsPanel";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Initialize Tag Service
@@ -72,11 +73,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       "headingNavigator.manageTagDefinitions",
       () => {
-        // 打开设置页面到标签定义部分
-        vscode.commands.executeCommand(
-          "workbench.action.openSettings",
-          "adjustHeadingInTree.tags.definitions"
-        );
+        TagDefinitionsPanel.createOrShow(context.extensionUri, tagService);
       }
     )
   );
@@ -321,7 +318,7 @@ export function activate(context: vscode.ExtensionContext): void {
         syncToEditor(editor);
       } else {
         // 没有活动编辑器（如关闭了所有文件），清空树形视图
-        headingProvider.refresh(undefined);
+        // headingProvider.refresh(undefined);
       }
     })
   );
