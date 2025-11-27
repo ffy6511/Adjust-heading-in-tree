@@ -452,7 +452,11 @@
       "properties": {
         "adjustHeadingInTree.tags.definitions": {
           "type": "array",
-          "default": [],
+          "default": [
+            { "name": "todo", "color": "charts.orange", "icon": "circle-large-outline" },
+            { "name": "review", "color": "charts.yellow", "icon": "eye" },
+            { "name": "highlight", "color": "charts.blue", "icon": "star" }
+          ],
           "description": "Custom definitions for tags including color and icon.",
           "items": {
             "type": "object",

@@ -115,14 +115,34 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             color: var(--vscode-editor-foreground);
             background-color: var(--vscode-editor-background);
         }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
         .search-box {
-            width: 100%;
+            flex: 1;
             padding: 6px;
             background: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
             border: 1px solid var(--vscode-input-border);
-            margin-bottom: 10px;
             box-sizing: border-box;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--vscode-icon-foreground);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .icon-btn:hover {
+            color: var(--vscode-icon-foreground);
+            background-color: var(--vscode-toolbar-hoverBackground);
+            border-radius: 4px;
         }
         .tags-container {
             display: flex;
@@ -187,7 +207,12 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     </style>
 </head>
 <body>
-    <input type="text" id="search" class="search-box" placeholder="Search tags...">
+    <div class="header">
+        <input type="text" id="search" class="search-box" placeholder="Search tags...">
+        <button id="refresh-btn" class="icon-btn" title="Refresh">
+            <span class="codicon codicon-refresh"></span>
+        </button>
+    </div>
     <div id="tags" class="tags-container"></div>
     <div id="blocks" class="block-list"></div>
 
@@ -206,11 +231,13 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         const tagsContainer = document.getElementById('tags');
         const blocksContainer = document.getElementById('blocks');
         const searchInput = document.getElementById('search');
+        const refreshBtn = document.getElementById('refresh-btn');
 
         // Initial Load
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.type === 'update') {
+                console.log('TagView: Received update', message);
                 state.tags = message.tags;
                 state.definitions = message.definitions;
                 state.data = message.data;
@@ -223,11 +250,12 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             renderTags();
         });
 
+        refreshBtn.addEventListener('click', () => {
+            vscode.postMessage({ type: 'refresh' });
+        });
+
         function getTagStyle(tagName) {
             const def = state.definitions.find(d => d.name === tagName);
-            // In a real implementation we would map 'charts.red' to CSS var, but here we simplify
-            // Or we assume standard colors.
-            // For now, let's just use Badge colors.
             return def;
         }
 
@@ -240,6 +268,11 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             tagsContainer.innerHTML = '';
 
             const filteredTags = state.tags.filter(t => t.toLowerCase().includes(state.searchQuery));
+
+            if (filteredTags.length === 0) {
+                 tagsContainer.innerHTML = '<span style="opacity:0.6; font-size:0.9em; padding:4px;">No tags found</span>';
+                 return;
+            }
 
             filteredTags.forEach(tag => {
                 const el = document.createElement('div');
@@ -279,9 +312,6 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             }
 
             // Find blocks that have ALL selected tags
-            // First, gather all candidate blocks
-            // Since our data structure is Tag -> Blocks, we have to intersect.
-
             const selectedArray = Array.from(state.selectedTags);
 
             // Start with blocks from the first tag
@@ -290,8 +320,6 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             // Intersect with subsequent tags
             for (let i = 1; i < selectedArray.length; i++) {
                 const nextTagBlocks = state.data[selectedArray[i]] || [];
-                // Intersection based on ID (uri + line)
-                // But wait, the block object sent here doesn't have ID explicitly, assume URI+Line is unique
                 const nextSet = new Set(nextTagBlocks.map(b => b.uri + ':' + b.line));
                 candidates = candidates.filter(b => nextSet.has(b.uri + ':' + b.line));
             }
@@ -327,6 +355,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
                 blocksContainer.appendChild(el);
             });
         }
+
+        // Initial request (optional if backend pushes on connect)
+        vscode.postMessage({ type: 'refresh' });
+
     </script>
 </body>
 </html>`;
