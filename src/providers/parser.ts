@@ -8,10 +8,17 @@ export interface HeadingMatch {
   text: string;
   line: number;
   range: Range;
+  tags: string[];
 }
 
 const markdownHeading = /^(#{1,6})\s+(.*)$/;
 const typstHeading = /^(=+)/;
+
+// Tag extraction regexes
+// Markdown: <!-- #tag1 #tag2 --> at the end of the line
+const markdownTagRegex = /<!--\s*((?:#[a-zA-Z0-9_\-]+\s*)+)-->\s*$/;
+// Typst: // #tag1 #tag2 at the end of the line
+const typstTagRegex = /\/\/\s*((?:#[a-zA-Z0-9_\-]+\s*)+)$/;
 
 /**
  * 解析 Markdown（`#`）与 Typst（`=`）标题，返回标题命中的结果列表。
@@ -39,14 +46,16 @@ export function parseHeadings(content: string): HeadingMatch[] {
     const markdownResult = markdownHeading.exec(line);
 
     if (markdownResult) {
-      const [, hashes, title] = markdownResult;
+      const [, hashes, rawText] = markdownResult;
+      const { text, tags } = parseMarkdownTags(rawText);
       matches.push(
         makeMatch(
           "markdown",
           lineNumber,
           hashes.length,
-          title.trim(),
-          line.length
+          text,
+          line.length,
+          tags
         )
       );
       continue;
@@ -54,8 +63,8 @@ export function parseHeadings(content: string): HeadingMatch[] {
 
     const typstResult = parseTypstHeading(line);
     if (typstResult) {
-      const { level, text } = typstResult;
-      matches.push(makeMatch("typst", lineNumber, level, text, line.length));
+      const { level, text, tags } = typstResult;
+      matches.push(makeMatch("typst", lineNumber, level, text, line.length, tags));
     }
   }
 
@@ -147,21 +156,51 @@ function matchFenceMarker(line: string): string | undefined {
   return line.slice(0, length);
 }
 
+function parseMarkdownTags(rawText: string): { text: string; tags: string[] } {
+  const match = markdownTagRegex.exec(rawText);
+  if (match) {
+    const tagString = match[1];
+    const tags = extractTags(tagString);
+    const text = rawText.slice(0, match.index).trim();
+    return { text, tags };
+  }
+  return { text: rawText.trim(), tags: [] };
+}
+
 function parseTypstHeading(
   line: string
-): { level: number; text: string } | undefined {
+): { level: number; text: string; tags: string[] } | undefined {
   const match = typstHeading.exec(line);
   if (!match) {
     return undefined;
   }
 
   const level = match[1].length;
-  const text = line.slice(level).trim();
+  const content = line.slice(level);
+
+  // Check for tags
+  const tagMatch = typstTagRegex.exec(content);
+  if (tagMatch) {
+    const tagString = tagMatch[1];
+    const tags = extractTags(tagString);
+    const text = content.slice(0, tagMatch.index).trim();
+    return { level, text, tags };
+  }
+
+  const text = content.trim();
   if (!text) {
     return undefined;
   }
 
-  return { level, text };
+  return { level, text, tags: [] };
+}
+
+function extractTags(tagString: string): string[] {
+  return tagString
+    .split(/\s+/)
+    .map(t => t.trim())
+    .filter(t => t.startsWith('#'))
+    .map(t => t.slice(1));
 }
 
 function makeMatch(
@@ -169,7 +208,8 @@ function makeMatch(
   line: number,
   level: number,
   text: string,
-  lineLength: number
+  lineLength: number,
+  tags: string[]
 ): HeadingMatch {
   const start = new Position(line, 0);
   const end = new Position(line, lineLength);
@@ -179,5 +219,6 @@ function makeMatch(
     text,
     line,
     range: new Range(start, end),
+    tags
   };
 }

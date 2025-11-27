@@ -35,7 +35,8 @@
     "onCommand:headingNavigator.editExtraImportsSetting",
     "onCommand:headingNavigator.filterToSubtree",
     "onCommand:headingNavigator.clearFilter",
-    "onView:headingNavigator.headingTree"
+    "onView:headingNavigator.headingTree",
+    "onView:headingNavigator.tagView"
   ],
   "main": "./dist/extension.js",
   "scripts": {
@@ -47,8 +48,11 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^18.17.0",
     "@types/vscode": "^1.85.0",
+    "mocha": "^11.7.5",
+    "ts-node": "^10.9.2",
     "tslib": "^2.6.2",
     "typescript": "^5.2.2"
   },
@@ -67,6 +71,10 @@
         {
           "id": "headingNavigator.headingTree",
           "name": "Adjust Heading Tree"
+        },
+        {
+          "id": "headingNavigator.tagView",
+          "name": "Tag View"
         }
       ]
     },
@@ -142,6 +150,11 @@
         "command": "headingNavigator.openHoverSettings",
         "title": "Configure Hover Toolbar",
         "icon": "$(tools)"
+      },
+      {
+        "command": "headingNavigator.editTags",
+        "title": "Edit Tags",
+        "icon": "$(tag)"
       }
     ],
     "keybindings": [
@@ -212,6 +225,36 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "headingNavigator.editTags",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'editTags'",
+          "group": "inline@0"
+        },
+        {
+          "command": "headingNavigator.editTags",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'editTags'",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.editTags",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'editTags'",
+          "group": "inline@2"
+        },
+        {
+          "command": "headingNavigator.editTags",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'editTags'",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.editTags",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'editTags'",
+          "group": "inline@4"
+        },
+        {
+          "command": "headingNavigator.editTags",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'editTags'",
+          "group": "inline@5"
+        },
         {
           "command": "headingNavigator.shiftUp",
           "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'shiftUp'",
@@ -407,6 +450,19 @@
     "configuration": {
       "title": "Adjust Heading in Tree",
       "properties": {
+        "adjustHeadingInTree.tags.definitions": {
+          "type": "array",
+          "default": [],
+          "description": "Custom definitions for tags including color and icon.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "color": { "type": "string" },
+              "icon": { "type": "string" }
+            }
+          }
+        },
         "adjustHeadingInTree.behavior.autoClearFilterOnCursorMove": {
           "type": "boolean",
           "default": true,
@@ -445,7 +501,8 @@
               "moveHeadingUp",
               "moveHeadingDown",
               "filterToSubtree",
-              "openExportMenu"
+              "openExportMenu",
+              "editTags"
             ]
           },
           "order": 999,

@@ -8,8 +8,23 @@ import { registerHelpCommand } from "./commands/showHelp";
 import { HeadingDragAndDropController } from "./dnd/headingDragAndDrop";
 import { registerExportCommands } from "./commands/exportSubtree";
 import { HoverSettingsPanel } from "./webview/hoverSettings";
+import { TagIndexService } from "./services/tagIndexService";
+import { TagViewProvider } from "./webview/tagView";
+import { registerEditTagsCommand } from "./commands/editTags";
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Initialize Tag Service
+  const tagService = TagIndexService.getInstance();
+
+  // Register Tag View
+  const tagViewProvider = new TagViewProvider(context.extensionUri, tagService);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      TagViewProvider.viewType,
+      tagViewProvider
+    )
+  );
+
   const headingProvider = new HeadingProvider();
 
   const dragAndDropController = new HeadingDragAndDropController(
@@ -29,6 +44,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
+
+  // Register Edit Tags Command
+  context.subscriptions.push(
+    registerEditTagsCommand(headingProvider, treeView)
+  );
 
   const updateHoverToolbar = async () => {
     // Since view.hoverToolbar is no longer available in settings UI,
