@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0] - 2025-11-27
+
+### Feat
+
+- Launched Tag View and Tag mechanism: allowing users to add 1 or more tags to block/subtree, and view the tag/tag combination of local/global files in the tag;
+- Provide default tags and allow users to create their own tags
+
 ## [0.2.2] - 2025-11-26
 
 ### Fixed

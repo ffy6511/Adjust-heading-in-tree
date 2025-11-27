@@ -4,12 +4,30 @@ import { registerShiftCommands } from "./commands/shiftHeadings";
 import { registerToggleCommand } from "./commands/toggleView";
 import { registerTreeLevelCommand } from "./commands/treeLevelControl";
 import { registerReorderCommands } from "./commands/reorderHeadings";
-import { registerHelpCommand } from "./commands/showHelp";
+import {
+  registerHelpCommand,
+  registerTagViewHelpCommand,
+} from "./commands/showHelp";
 import { HeadingDragAndDropController } from "./dnd/headingDragAndDrop";
 import { registerExportCommands } from "./commands/exportSubtree";
 import { HoverSettingsPanel } from "./webview/hoverSettings";
+import { TagIndexService } from "./services/tagIndexService";
+import { TagViewProvider } from "./webview/tagView";
+import { registerEditTagsCommand } from "./commands/editTags";
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Initialize Tag Service
+  const tagService = TagIndexService.getInstance();
+
+  // Register Tag View
+  const tagViewProvider = new TagViewProvider(context.extensionUri, tagService);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      TagViewProvider.viewType,
+      tagViewProvider
+    )
+  );
+
   const headingProvider = new HeadingProvider();
 
   const dragAndDropController = new HeadingDragAndDropController(
@@ -29,6 +47,52 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
+
+  // Register Edit Tags Command
+  context.subscriptions.push(
+    registerEditTagsCommand(headingProvider, treeView)
+  );
+
+  // Register Refresh Tags Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("headingNavigator.refreshTags", () => {
+      tagService.scanWorkspace();
+    })
+  );
+
+  // Register Toggle Tag Scope Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("headingNavigator.toggleTagScope", () => {
+      tagViewProvider.toggleScope();
+    })
+  );
+
+  // Register Manage Tag Definitions Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.manageTagDefinitions",
+      () => {
+        // 打开设置页面到标签定义部分
+        vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "adjustHeadingInTree.tags.definitions"
+        );
+      }
+    )
+  );
+
+  // Register Tag View Help Command
+  context.subscriptions.push(registerTagViewHelpCommand());
+
+  // Register Toggle Tag Selection Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.toggleTagSelection",
+      () => {
+        tagViewProvider.toggleMultiSelectMode();
+      }
+    )
+  );
 
   const updateHoverToolbar = async () => {
     // Since view.hoverToolbar is no longer available in settings UI,

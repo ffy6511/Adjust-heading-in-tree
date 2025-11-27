@@ -133,6 +133,12 @@ export class HoverSettingsPanel {
         label: "Export",
         desc: "Open export options",
       },
+      {
+          id: "editTags",
+          icon: "tag",
+          label: "Edit Tags",
+          desc: "Add or remove tags for this heading"
+      }
     ];
 
     const availableItemsJSON = JSON.stringify(items);
