@@ -155,6 +155,11 @@
         "command": "headingNavigator.editTags",
         "title": "Edit Tags",
         "icon": "$(tag)"
+      },
+      {
+        "command": "headingNavigator.refreshTags",
+        "title": "Refresh Tags",
+        "icon": "$(refresh)"
       }
     ],
     "keybindings": [
@@ -222,6 +227,11 @@
           "command": "headingNavigator.openHoverSettings",
           "when": "view == headingNavigator.headingTree",
           "group": "navigation@4"
+        },
+        {
+          "command": "headingNavigator.refreshTags",
+          "when": "view == headingNavigator.tagView",
+          "group": "navigation"
         }
       ],
       "view/item/context": [

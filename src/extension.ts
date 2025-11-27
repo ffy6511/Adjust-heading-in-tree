@@ -50,6 +50,13 @@ export function activate(context: vscode.ExtensionContext): void {
     registerEditTagsCommand(headingProvider, treeView)
   );
 
+  // Register Refresh Tags Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("headingNavigator.refreshTags", () => {
+      tagService.scanWorkspace();
+    })
+  );
+
   const updateHoverToolbar = async () => {
     // Since view.hoverToolbar is no longer available in settings UI,
     // use hardcoded default configuration
