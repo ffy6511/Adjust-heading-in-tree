@@ -161,6 +161,16 @@
         "command": "headingNavigator.refreshTags",
         "title": "Refresh Tags",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "headingNavigator.toggleTagScope",
+        "title": "Toggle Tag Scope (Current File / Workspace)",
+        "icon": "$(file)"
+      },
+      {
+        "command": "headingNavigator.manageTagDefinitions",
+        "title": "Manage Tag Definitions",
+        "icon": "$(settings-gear)"
       }
     ],
     "keybindings": [
@@ -230,9 +240,14 @@
           "group": "navigation@4"
         },
         {
+          "command": "headingNavigator.manageTagDefinitions",
+          "when": "view == headingNavigator.tagView",
+          "group": "navigation@2"
+        },
+        {
           "command": "headingNavigator.refreshTags",
           "when": "view == headingNavigator.tagView",
-          "group": "navigation"
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [

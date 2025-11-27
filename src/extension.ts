@@ -57,6 +57,27 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  // Register Toggle Tag Scope Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("headingNavigator.toggleTagScope", () => {
+      tagViewProvider.toggleScope();
+    })
+  );
+
+  // Register Manage Tag Definitions Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.manageTagDefinitions",
+      () => {
+        // 打开设置页面到标签定义部分
+        vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "adjustHeadingInTree.tags.definitions"
+        );
+      }
+    )
+  );
+
   const updateHoverToolbar = async () => {
     // Since view.hoverToolbar is no longer available in settings UI,
     // use hardcoded default configuration

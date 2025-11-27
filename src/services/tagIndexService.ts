@@ -101,7 +101,7 @@ export class TagIndexService {
           const node: TaggedHeading = {
             ...match,
             uri: uri,
-            id: `${uri.fsPath}:${match.line}`
+            id: `${uri.fsPath}:${match.line}`,
           };
 
           nodes.push(node);
@@ -113,7 +113,7 @@ export class TagIndexService {
 
   private removeEntriesForFile(uri: vscode.Uri) {
     for (const [tag, nodes] of this.tagIndex.entries()) {
-      const filtered = nodes.filter(n => n.uri.toString() !== uri.toString());
+      const filtered = nodes.filter((n) => n.uri.toString() !== uri.toString());
       if (filtered.length === 0) {
         this.tagIndex.delete(tag);
       } else {
@@ -124,12 +124,64 @@ export class TagIndexService {
 
   public getAllTags(): string[] {
     const fromIndex = Array.from(this.tagIndex.keys());
-    const fromSettings = this.getTagsFromSettings().map(t => t.name);
+    const fromSettings = this.getTagsFromSettings().map((t) => t.name);
     return Array.from(new Set([...fromIndex, ...fromSettings])).sort();
   }
 
   public getBlocksByTag(tag: string): TaggedHeading[] {
     return this.tagIndex.get(tag) || [];
+  }
+
+  /**
+   * 获取指定文件中的所有标签
+   * @param uri 文件 URI
+   * @returns 该文件中使用的所有标签名称
+   */
+  public getTagsForFile(uri: vscode.Uri): string[] {
+    const tagsInFile = new Set<string>();
+    for (const [tag, nodes] of this.tagIndex.entries()) {
+      for (const node of nodes) {
+        if (node.uri.toString() === uri.toString()) {
+          tagsInFile.add(tag);
+          break;
+        }
+      }
+    }
+    return Array.from(tagsInFile).sort();
+  }
+
+  /**
+   * 获取指定文件中带标签的标题块
+   * @param uri 文件 URI
+   * @param tag 可选的标签过滤
+   * @returns 该文件中带标签的标题块
+   */
+  public getBlocksForFile(uri: vscode.Uri, tag?: string): TaggedHeading[] {
+    const blocks: TaggedHeading[] = [];
+    const seenIds = new Set<string>();
+
+    if (tag) {
+      // 只获取特定标签的块
+      const tagBlocks = this.tagIndex.get(tag) || [];
+      for (const block of tagBlocks) {
+        if (block.uri.toString() === uri.toString() && !seenIds.has(block.id)) {
+          seenIds.add(block.id);
+          blocks.push(block);
+        }
+      }
+    } else {
+      // 获取所有带标签的块
+      for (const [, nodes] of this.tagIndex.entries()) {
+        for (const node of nodes) {
+          if (node.uri.toString() === uri.toString() && !seenIds.has(node.id)) {
+            seenIds.add(node.id);
+            blocks.push(node);
+          }
+        }
+      }
+    }
+
+    return blocks.sort((a, b) => a.line - b.line);
   }
 
   public getTagsFromSettings(): TagDefinition[] {
@@ -139,13 +191,13 @@ export class TagIndexService {
     const defaults = [
       { name: "todo", color: "charts.orange", icon: "circle-large-outline" },
       { name: "review", color: "charts.yellow", icon: "eye" },
-      { name: "highlight", color: "charts.blue", icon: "star" }
+      { name: "highlight", color: "charts.blue", icon: "star" },
     ];
 
     // Merge: if name exists in user config, override default.
     const merged = [...defs];
     for (const d of defaults) {
-      if (!merged.find(m => m.name === d.name)) {
+      if (!merged.find((m) => m.name === d.name)) {
         merged.push(d);
       }
     }
