@@ -35,6 +35,7 @@
     "onCommand:headingNavigator.editExtraImportsSetting",
     "onCommand:headingNavigator.filterToSubtree",
     "onCommand:headingNavigator.clearFilter",
+    "onCommand:headingNavigator.showTagViewHelp",
     "onView:headingNavigator.headingTree",
     "onView:headingNavigator.tagView"
   ],
@@ -168,6 +169,15 @@
         "icon": "$(file)"
       },
       {
+        "command": "headingNavigator.toggleTagSelection",
+        "title": "Toggle Tag Selection Mode"
+      },
+      {
+        "command": "headingNavigator.showTagViewHelp",
+        "title": "Tag View Help",
+        "icon": "$(question)"
+      },
+      {
         "command": "headingNavigator.manageTagDefinitions",
         "title": "Manage Tag Definitions",
         "icon": "$(settings-gear)"
@@ -238,6 +248,11 @@
           "command": "headingNavigator.openHoverSettings",
           "when": "view == headingNavigator.headingTree",
           "group": "navigation@4"
+        },
+        {
+          "command": "headingNavigator.showTagViewHelp",
+          "when": "view == headingNavigator.tagView",
+          "group": "navigation@1"
         },
         {
           "command": "headingNavigator.manageTagDefinitions",

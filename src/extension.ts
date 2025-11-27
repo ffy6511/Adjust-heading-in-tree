@@ -4,7 +4,10 @@ import { registerShiftCommands } from "./commands/shiftHeadings";
 import { registerToggleCommand } from "./commands/toggleView";
 import { registerTreeLevelCommand } from "./commands/treeLevelControl";
 import { registerReorderCommands } from "./commands/reorderHeadings";
-import { registerHelpCommand } from "./commands/showHelp";
+import {
+  registerHelpCommand,
+  registerTagViewHelpCommand,
+} from "./commands/showHelp";
 import { HeadingDragAndDropController } from "./dnd/headingDragAndDrop";
 import { registerExportCommands } from "./commands/exportSubtree";
 import { HoverSettingsPanel } from "./webview/hoverSettings";
@@ -74,6 +77,19 @@ export function activate(context: vscode.ExtensionContext): void {
           "workbench.action.openSettings",
           "adjustHeadingInTree.tags.definitions"
         );
+      }
+    )
+  );
+
+  // Register Tag View Help Command
+  context.subscriptions.push(registerTagViewHelpCommand());
+
+  // Register Toggle Tag Selection Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.toggleTagSelection",
+      () => {
+        tagViewProvider.toggleMultiSelectMode();
       }
     )
   );

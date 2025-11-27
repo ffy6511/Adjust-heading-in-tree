@@ -4,6 +4,10 @@ interface HelpItem extends vscode.QuickPickItem {
   commandId?: string;
 }
 
+interface TagViewHelpItem extends vscode.QuickPickItem {
+  action: string;
+}
+
 const HELP_ITEMS: HelpItem[] = [
   {
     label: "Shift heading level up",
@@ -41,6 +45,22 @@ const HELP_ITEMS: HelpItem[] = [
   },
 ];
 
+const TAG_VIEW_HELP_ITEMS: TagViewHelpItem[] = [
+  {
+    label: "🌐 Toggle scope",
+    description: "between global workspace and current file. ",
+    detail: "This will decide your tagged item chosen from where.",
+    action: "toggleScope",
+  },
+  {
+    label: "🎯 Toggle selection mode",
+    description: "between single-select and multi-select",
+    detail:
+      "If this is multi mode, searched tagged item should own all of the selected tags.",
+    action: "toggleSelection",
+  },
+];
+
 export function registerHelpCommand(): vscode.Disposable {
   return vscode.commands.registerCommand(
     "headingNavigator.showHelp",
@@ -60,6 +80,32 @@ export function registerHelpCommand(): vscode.Disposable {
       }
 
       await openKeybindingsEditor(selection.commandId);
+    }
+  );
+}
+
+export function registerTagViewHelpCommand(): vscode.Disposable {
+  return vscode.commands.registerCommand(
+    "headingNavigator.showTagViewHelp",
+    async () => {
+      const selection = await vscode.window.showQuickPick(TAG_VIEW_HELP_ITEMS, {
+        title: "Tag View Quick Actions",
+        placeHolder: "Choose an action to perform.",
+      });
+
+      if (!selection) {
+        return;
+      }
+
+      if (selection.action === "toggleScope") {
+        await vscode.commands.executeCommand("headingNavigator.toggleTagScope");
+      } else if (selection.action === "toggleSelection") {
+        // We need to toggle the selection mode. Since we don't have direct access,
+        // we'll send a message to the webview to trigger the toggle
+        await vscode.commands.executeCommand(
+          "headingNavigator.toggleTagSelection"
+        );
+      }
     }
   );
 }

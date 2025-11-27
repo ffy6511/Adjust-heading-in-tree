@@ -60,6 +60,20 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     return this._isGlobalScope;
   }
 
+  /**
+   * 切换多选模式
+   */
+  public toggleMultiSelectMode(): void {
+    this._isMultiSelectMode = !this._isMultiSelectMode;
+    // 发送消息给webview更新状态
+    if (this._view) {
+      this._view.webview.postMessage({
+        type: "toggleMultiSelectFromExtension",
+        enabled: this._isMultiSelectMode,
+      });
+    }
+  }
+
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
@@ -207,49 +221,59 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         }
         .controls {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            flex-direction: row;
+            gap: 4px;
             margin-bottom: 15px;
-        }
-        .control-btn {
-            display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 6px;
-            background: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            cursor: pointer;
-            border: 1px solid transparent;
-            font-size: 0.9em;
-            opacity: 0.7;
-            transition: opacity 0.2s ease;
-        }
-        .control-btn:hover {
-            opacity: 0.9;
-        }
-        .control-btn {
-            position: relative;
-        }
-        .control-btn-label {
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            position: absolute;
-            left: 28px;
-        }
-        .control-btn-label.active {
-            opacity: 1;
         }
         .header {
+            display: flex;
+            align-items: center;
+            gap: 2px;
             margin-bottom: 10px;
         }
         .search-box {
+            flex: 1;
             padding: 6px;
             background: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
             border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
             box-sizing: border-box;
-            width: 100%;
+            min-width: 0; /* Allow shrinking */
+        }
+        .search-controls {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        .toggle-btn {
+            width: 24px;
+            height: 24px;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: var(--vscode-icon-foreground);
+            cursor: pointer;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease, background 0.2s ease;
+        }
+        .toggle-btn:hover {
+            opacity: 0.9;
+            background: var(--vscode-toolbar-hoverBackground);
+        }
+        .toggle-btn-icon {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            position: absolute;
+        }
+        .toggle-btn-icon.active {
+            opacity: 1;
         }
         .icon-btn {
             background: none;
@@ -335,20 +359,19 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     </style>
 </head>
 <body>
-    <div class="controls">
-        <div id="scope-btn" class="control-btn">
-            <span class="codicon codicon-globe"></span>
-            <span class="control-btn-label active" id="scope-workspace">Workspace</span>
-            <span class="control-btn-label" id="scope-current">Current</span>
-        </div>
-        <div id="select-btn" class="control-btn">
-            <span class="codicon codicon-list-selection"></span>
-            <span class="control-btn-label active" id="select-single">single-select</span>
-            <span class="control-btn-label" id="select-mult">mult-filter</span>
-        </div>
-    </div>
+
     <div class="header">
         <input type="text" id="search" class="search-box" placeholder="Search tags...">
+        <div class="search-controls">
+            <button class="toggle-btn" id="scope-btn" title="Toggle scope (global/current)">
+                <span class="codicon codicon-globe toggle-btn-icon active" id="scope-icon-globe"></span>
+                <span class="codicon codicon-file toggle-btn-icon" id="scope-icon-file"></span>
+            </button>
+            <button class="toggle-btn" id="select-btn" title="Toggle selection mode">
+                <span class="codicon codicon-list-selection toggle-btn-icon active" id="select-icon-single"></span>
+                <span class="codicon codicon-list-filter toggle-btn-icon" id="select-icon-mult"></span>
+            </button>
+        </div>
     </div>
     <div id="tags" class="tags-container"></div>
     <div id="blocks" class="block-list"></div>
@@ -390,6 +413,16 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             } else if (message.type === 'scopeChanged') {
                 state.isGlobal = message.isGlobal;
                 updateScopeBtn();
+            } else if (message.type === 'toggleMultiSelectFromExtension') {
+                state.isMultiSelect = message.enabled;
+                updateSelectBtn();
+                // 切换到单选模式时，只保留第一个选中的标签
+                if (!state.isMultiSelect && state.selectedTags.size > 1) {
+                    const first = Array.from(state.selectedTags)[0];
+                    state.selectedTags.clear();
+                    state.selectedTags.add(first);
+                }
+                render();
             }
         });
 
@@ -417,21 +450,21 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
         function updateScopeBtn() {
             if (state.isGlobal) {
-                document.getElementById('scope-workspace').classList.add('active');
-                document.getElementById('scope-current').classList.remove('active');
+                document.getElementById('scope-icon-globe').classList.add('active');
+                document.getElementById('scope-icon-file').classList.remove('active');
             } else {
-                document.getElementById('scope-current').classList.add('active');
-                document.getElementById('scope-workspace').classList.remove('active');
+                document.getElementById('scope-icon-file').classList.add('active');
+                document.getElementById('scope-icon-globe').classList.remove('active');
             }
         }
 
         function updateSelectBtn() {
             if (state.isMultiSelect) {
-                document.getElementById('select-mult').classList.add('active');
-                document.getElementById('select-single').classList.remove('active');
+                document.getElementById('select-icon-mult').classList.add('active');
+                document.getElementById('select-icon-single').classList.remove('active');
             } else {
-                document.getElementById('select-single').classList.add('active');
-                document.getElementById('select-mult').classList.remove('active');
+                document.getElementById('select-icon-single').classList.add('active');
+                document.getElementById('select-icon-mult').classList.remove('active');
             }
         }
 
