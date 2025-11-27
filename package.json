@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -74,7 +74,8 @@
         },
         {
           "id": "headingNavigator.tagView",
-          "name": "Tag View"
+          "name": "Tag View",
+          "type": "webview"
         }
       ]
     },
@@ -463,17 +464,35 @@
         "adjustHeadingInTree.tags.definitions": {
           "type": "array",
           "default": [
-            { "name": "todo", "color": "charts.orange", "icon": "circle-large-outline" },
-            { "name": "review", "color": "charts.yellow", "icon": "eye" },
-            { "name": "highlight", "color": "charts.blue", "icon": "star" }
+            {
+              "name": "todo",
+              "color": "charts.orange",
+              "icon": "circle-large-outline"
+            },
+            {
+              "name": "review",
+              "color": "charts.yellow",
+              "icon": "eye"
+            },
+            {
+              "name": "highlight",
+              "color": "charts.blue",
+              "icon": "star"
+            }
           ],
           "description": "Custom definitions for tags including color and icon.",
           "items": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" },
-              "color": { "type": "string" },
-              "icon": { "type": "string" }
+              "name": {
+                "type": "string"
+              },
+              "color": {
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              }
             }
           }
         },
