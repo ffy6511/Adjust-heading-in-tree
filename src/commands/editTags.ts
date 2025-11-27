@@ -141,7 +141,7 @@ async function handleQuickPickWithCreate(
       finalItems = [
         {
           label: value,
-          picked: pickedTags.has(value),
+          picked: pickedTags.has(value), // If user already picked this new tag in this session
           description: "Create new tag",
           alwaysShow: true,
           iconPath: new vscode.ThemeIcon("add"),
@@ -155,9 +155,22 @@ async function handleQuickPickWithCreate(
     quickPick.items = finalItems;
 
     // Re-apply selection based on our tracked state
-    quickPick.selectedItems = quickPick.items.filter((i) =>
+    const selectedItems = quickPick.items.filter((i) =>
       pickedTags.has(i.label)
     );
+
+    // If there are no existing selections and there's a "Create new tag" option,
+    // automatically select it for better user experience
+    if (selectedItems.length === 0 && value && finalItems.length > 0) {
+      const createItem = finalItems.find(
+        (item) => item.description === "Create new tag"
+      );
+      if (createItem) {
+        selectedItems.push(createItem);
+      }
+    }
+
+    quickPick.selectedItems = selectedItems;
   });
 
   quickPick.onDidChangeSelection((selection) => {

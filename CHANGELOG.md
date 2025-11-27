@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.1] - 2025-11-27
+
+### Chore
+
+- Modify some default configuration
+
+- Optimize the style
+
+### Fixed
+
+- Issues related to Tag deletion, modification, etc
+
 ## [0.3.0] - 2025-11-27
 
 ### Feat

@@ -165,7 +165,7 @@ export class TagDefinitionsPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "tagDefinitions",
-      "Manage Tag Definitions",
+      "Manage Your Tags",
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -304,7 +304,7 @@ export class TagDefinitionsPanel {
   private async _addNewTag() {
     const name = await vscode.window.showInputBox({
       prompt: "Enter new tag name",
-      placeHolder: "e.g., important, todo, review",
+      placeHolder: "e.g., Important, Todo, Review",
       validateInput: (value) => this._validateTagName(value),
     });
 
@@ -534,7 +534,7 @@ export class TagDefinitionsPanel {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="${codiconsUri}" rel="stylesheet" />
-    <title>Manage Tag Definitions</title>
+    <title>Manage Your Tags</title>
     <style>
         body {
             font-family: var(--vscode-font-family);
@@ -758,7 +758,7 @@ export class TagDefinitionsPanel {
 </head>
 <body>
     <div class="header">
-        <h1><span class="codicon codicon-tag"></span> Manage Tag Definitions</h1>
+        <h1><span class="codicon codicon-tag"></span> Manage Your Tags</h1>
         <button class="add-btn" id="addBtn">
             <span class="codicon codicon-plus"></span> New
         </button>

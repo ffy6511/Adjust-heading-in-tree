@@ -11,7 +11,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
 
   // 作用域状态：true = 全局（工作区），false = 当前文件
-  private _isGlobalScope = false;
+  private _isGlobalScope = true;
   // 多选模式状态：true = 多选，false = 单选
   private _isMultiSelectMode = false;
 
