@@ -222,7 +222,7 @@ async function applyTags(
   const tagString = tags.length > 0 ? tags.map((t) => `#${t}`).join(" ") : "";
 
   if (kind === "markdown") {
-    const markdownTagRegex = /<!--\s*((?:#[a-zA-Z0-9_\-]+\s*)+)-->\s*$/;
+    const markdownTagRegex = /<!--\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)-->\s*$/;
     const match = markdownTagRegex.exec(lineText);
     if (match) {
       if (tags.length > 0) {
@@ -237,7 +237,7 @@ async function applyTags(
     }
   } else {
     // typst
-    const typstTagRegex = /\/\/\s*((?:#[a-zA-Z0-9_\-]+\s*)+)$/;
+    const typstTagRegex = /\/\/\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)$/;
     const match = typstTagRegex.exec(lineText);
     if (match) {
       if (tags.length > 0) {

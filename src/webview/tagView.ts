@@ -316,13 +316,14 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             transition: opacity 0.15s, border-color 0.15s, transform 0.1s;
         }
         .tag-chip:hover {
-            opacity: 0.8;
-            transform: scale(1.02);
-        }
+    opacity: 0.8;
+    transform: scale(1.01);
+    background: hsl(from var(--vscode-button-secondaryBackground) h s l / 0.6);
+}
+
         .tag-chip.selected {
             opacity: 1;
             border-color: var(--vscode-focusBorder);
-            font-weight: bold;
             background: var(--vscode-button-secondaryBackground);
         }
         .block-list {

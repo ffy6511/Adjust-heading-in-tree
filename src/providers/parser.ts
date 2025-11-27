@@ -16,9 +16,9 @@ const typstHeading = /^(=+)/;
 
 // Tag extraction regexes
 // Markdown: <!-- #tag1 #tag2 --> at the end of the line
-const markdownTagRegex = /<!--\s*((?:#[a-zA-Z0-9_\-]+\s*)+)-->\s*$/;
+const markdownTagRegex = /<!--\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)-->\s*$/;
 // Typst: // #tag1 #tag2 at the end of the line
-const typstTagRegex = /\/\/\s*((?:#[a-zA-Z0-9_\-]+\s*)+)$/;
+const typstTagRegex = /\/\/\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)$/;
 
 /**
  * 解析 Markdown（`#`）与 Typst（`=`）标题，返回标题命中的结果列表。
@@ -64,7 +64,9 @@ export function parseHeadings(content: string): HeadingMatch[] {
     const typstResult = parseTypstHeading(line);
     if (typstResult) {
       const { level, text, tags } = typstResult;
-      matches.push(makeMatch("typst", lineNumber, level, text, line.length, tags));
+      matches.push(
+        makeMatch("typst", lineNumber, level, text, line.length, tags)
+      );
     }
   }
 
@@ -198,9 +200,9 @@ function parseTypstHeading(
 function extractTags(tagString: string): string[] {
   return tagString
     .split(/\s+/)
-    .map(t => t.trim())
-    .filter(t => t.startsWith('#'))
-    .map(t => t.slice(1));
+    .map((t) => t.trim())
+    .filter((t) => t.startsWith("#"))
+    .map((t) => t.slice(1));
 }
 
 function makeMatch(
@@ -219,6 +221,6 @@ function makeMatch(
     text,
     line,
     range: new Range(start, end),
-    tags
+    tags,
   };
 }
