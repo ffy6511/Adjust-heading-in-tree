@@ -92,16 +92,14 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   const updateHoverToolbar = async () => {
-    // Since view.hoverToolbar is no longer available in settings UI,
-    // use hardcoded default configuration
-    const buttons = [
-      "shiftUp",
-      "shiftDown",
-      "moveHeadingUp",
-      "moveHeadingDown",
+    // 从配置中读取 hover 按钮设置
+    const configuration = vscode.workspace.getConfiguration(
+      "adjustHeadingInTree"
+    );
+    const buttons = configuration.get<string[]>("view.hoverToolbar", [
+      "editTags",
       "filterToSubtree",
-      "openExportMenu",
-    ];
+    ]);
 
     // We support up to 6 slots for now
     for (let i = 0; i < 6; i++) {
@@ -142,6 +140,18 @@ export function activate(context: vscode.ExtensionContext): void {
             button
           );
         }
+      }
+    })
+  );
+
+  // 文档保存时自动注册新标签
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (
+        document.languageId === "markdown" ||
+        document.languageId === "typst"
+      ) {
+        tagService.autoRegisterTagsForDocument(document);
       }
     })
   );

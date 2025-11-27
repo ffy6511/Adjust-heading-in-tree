@@ -3,6 +3,19 @@ import { HeadingNode, HeadingProvider } from "../providers/headingProvider";
 import { TagIndexService, TagDefinition } from "../services/tagIndexService";
 import { parseHeadings } from "../providers/parser";
 
+/**
+ * 验证标签名称是否合法（允许中文字符、标点符号，只要不是空格就行）
+ */
+function validateTagName(name: string): string | null {
+  if (!name || !name.trim()) {
+    return "Tag name cannot be empty";
+  }
+  if (/\s/.test(name)) {
+    return "Tag name cannot contain spaces";
+  }
+  return null;
+}
+
 export function registerEditTagsCommand(
   headingProvider: HeadingProvider,
   treeView: vscode.TreeView<HeadingNode>
@@ -41,7 +54,9 @@ export function registerEditTagsCommand(
 
       const matches = parseHeadings(lineText);
       if (matches.length === 0) {
-        vscode.window.showErrorMessage("Could not parse heading at line " + (lineIndex + 1));
+        vscode.window.showErrorMessage(
+          "Could not parse heading at line " + (lineIndex + 1)
+        );
         return;
       }
 
@@ -50,7 +65,12 @@ export function registerEditTagsCommand(
       const allTagNames = tagService.getAllTags();
       const tagDefinitions = tagService.getTagsFromSettings();
 
-      await handleQuickPickWithCreate(targetNode, currentTags, allTagNames, tagDefinitions);
+      await handleQuickPickWithCreate(
+        targetNode,
+        currentTags,
+        allTagNames,
+        tagDefinitions
+      );
     }
   );
 }
@@ -71,30 +91,30 @@ async function handleQuickPickWithCreate(
 
   const generateItems = (filterValue: string = ""): vscode.QuickPickItem[] => {
     // 1. Existing Tags from Index/Settings
-    const items: vscode.QuickPickItem[] = allTags.map(tagName => {
-      const def = defs.find(d => d.name === tagName);
+    const items: vscode.QuickPickItem[] = allTags.map((tagName) => {
+      const def = defs.find((d) => d.name === tagName);
       return {
         label: tagName,
         picked: pickedTags.has(tagName),
         alwaysShow: true, // we handle filtering manually if needed, or let VS Code do it
         description: def ? "(defined)" : undefined,
-        iconPath: def?.icon ? new vscode.ThemeIcon(def.icon) : undefined
+        iconPath: def?.icon ? new vscode.ThemeIcon(def.icon) : undefined,
       };
     });
 
     // 2. New Tag Creation
     // If filterValue is present and not an exact match, show a "Create" option
     if (filterValue) {
-        const exactMatch = items.find(i => i.label === filterValue);
-        if (!exactMatch) {
-            items.unshift({
-                label: filterValue,
-                picked: pickedTags.has(filterValue), // If user already picked this new tag in this session
-                description: "Create new tag",
-                alwaysShow: true,
-                iconPath: new vscode.ThemeIcon("add")
-            });
-        }
+      const exactMatch = items.find((i) => i.label === filterValue);
+      if (!exactMatch) {
+        items.unshift({
+          label: filterValue,
+          picked: pickedTags.has(filterValue), // If user already picked this new tag in this session
+          description: "Create new tag",
+          alwaysShow: true,
+          iconPath: new vscode.ThemeIcon("add"),
+        });
+      }
     }
 
     return items;
@@ -102,29 +122,32 @@ async function handleQuickPickWithCreate(
 
   quickPick.items = generateItems();
 
-  quickPick.onDidChangeValue(value => {
+  quickPick.onDidChangeValue((value) => {
     // Keep reference to all known items plus potentially the new one
-    const baseItems: vscode.QuickPickItem[] = allTags.map(tagName => {
-        const def = defs.find(d => d.name === tagName);
-        return {
-          label: tagName,
-          picked: pickedTags.has(tagName),
-          description: def ? "(defined)" : undefined,
-          iconPath: def?.icon ? new vscode.ThemeIcon(def.icon) : undefined,
-          alwaysShow: true
-        };
+    const baseItems: vscode.QuickPickItem[] = allTags.map((tagName) => {
+      const def = defs.find((d) => d.name === tagName);
+      return {
+        label: tagName,
+        picked: pickedTags.has(tagName),
+        description: def ? "(defined)" : undefined,
+        iconPath: def?.icon ? new vscode.ThemeIcon(def.icon) : undefined,
+        alwaysShow: true,
+      };
     });
 
     // Add the "Create" item if needed
     let finalItems = baseItems;
     if (value && !allTags.includes(value)) {
-        finalItems = [{
-            label: value,
-            picked: pickedTags.has(value),
-            description: "Create new tag",
-            alwaysShow: true,
-            iconPath: new vscode.ThemeIcon("add")
-        }, ...baseItems];
+      finalItems = [
+        {
+          label: value,
+          picked: pickedTags.has(value),
+          description: "Create new tag",
+          alwaysShow: true,
+          iconPath: new vscode.ThemeIcon("add"),
+        },
+        ...baseItems,
+      ];
     }
 
     // Update items but try to preserve selection references if possible?
@@ -132,19 +155,35 @@ async function handleQuickPickWithCreate(
     quickPick.items = finalItems;
 
     // Re-apply selection based on our tracked state
-    quickPick.selectedItems = quickPick.items.filter(i => pickedTags.has(i.label));
+    quickPick.selectedItems = quickPick.items.filter((i) =>
+      pickedTags.has(i.label)
+    );
   });
 
-  quickPick.onDidChangeSelection(selection => {
-      // Update our source of truth
-      pickedTags.clear();
-      selection.forEach(i => pickedTags.add(i.label));
+  quickPick.onDidChangeSelection((selection) => {
+    // Update our source of truth
+    pickedTags.clear();
+    selection.forEach((i) => pickedTags.add(i.label));
   });
 
   quickPick.onDidAccept(async () => {
     const selected = Array.from(pickedTags);
+
+    // 验证新标签名的合法性
+    const selectedItems = quickPick.selectedItems;
+    const newTagItem = selectedItems.find(
+      (item) => item.description === "Create new tag"
+    );
+    if (newTagItem) {
+      const validationError = validateTagName(newTagItem.label);
+      if (validationError) {
+        vscode.window.showErrorMessage(validationError);
+        return; // 不继续，保持QuickPick打开让用户修改
+      }
+    }
+
     quickPick.hide();
-    await applyTags(node, selected);
+    await applyTags(node, selected, allTags);
     quickPick.dispose();
   });
 
@@ -152,7 +191,11 @@ async function handleQuickPickWithCreate(
   quickPick.show();
 }
 
-async function applyTags(node: HeadingNode, tags: string[]) {
+async function applyTags(
+  node: HeadingNode,
+  tags: string[],
+  allTagNames: string[]
+) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
 
@@ -163,41 +206,55 @@ async function applyTags(node: HeadingNode, tags: string[]) {
   let newLineText = lineText;
   const kind = node.kind; // "markdown" or "typst"
 
-  const tagString = tags.length > 0 ? tags.map(t => `#${t}`).join(' ') : '';
+  const tagString = tags.length > 0 ? tags.map((t) => `#${t}`).join(" ") : "";
 
-  if (kind === 'markdown') {
-      const markdownTagRegex = /<!--\s*((?:#[a-zA-Z0-9_\-]+\s*)+)-->\s*$/;
-      const match = markdownTagRegex.exec(lineText);
-      if (match) {
-          if (tags.length > 0) {
-            newLineText = lineText.slice(0, match.index) + `<!-- ${tagString} -->`;
-          } else {
-            newLineText = lineText.slice(0, match.index).trimEnd();
-          }
+  if (kind === "markdown") {
+    const markdownTagRegex = /<!--\s*((?:#[a-zA-Z0-9_\-]+\s*)+)-->\s*$/;
+    const match = markdownTagRegex.exec(lineText);
+    if (match) {
+      if (tags.length > 0) {
+        newLineText = lineText.slice(0, match.index) + `<!-- ${tagString} -->`;
       } else {
-          if (tags.length > 0) {
-            newLineText = `${lineText.trimEnd()} <!-- ${tagString} -->`;
-          }
+        newLineText = lineText.slice(0, match.index).trimEnd();
       }
-  } else { // typst
-      const typstTagRegex = /\/\/\s*((?:#[a-zA-Z0-9_\-]+\s*)+)$/;
-      const match = typstTagRegex.exec(lineText);
-      if (match) {
-           if (tags.length > 0) {
-            newLineText = lineText.slice(0, match.index) + `// ${tagString}`;
-          } else {
-            newLineText = lineText.slice(0, match.index).trimEnd();
-          }
+    } else {
+      if (tags.length > 0) {
+        newLineText = `${lineText.trimEnd()} <!-- ${tagString} -->`;
+      }
+    }
+  } else {
+    // typst
+    const typstTagRegex = /\/\/\s*((?:#[a-zA-Z0-9_\-]+\s*)+)$/;
+    const match = typstTagRegex.exec(lineText);
+    if (match) {
+      if (tags.length > 0) {
+        newLineText = lineText.slice(0, match.index) + `// ${tagString}`;
       } else {
-           if (tags.length > 0) {
-            newLineText = `${lineText.trimEnd()} // ${tagString}`;
-          }
+        newLineText = lineText.slice(0, match.index).trimEnd();
       }
+    } else {
+      if (tags.length > 0) {
+        newLineText = `${lineText.trimEnd()} // ${tagString}`;
+      }
+    }
   }
 
   if (newLineText !== lineText) {
     const edit = new vscode.WorkspaceEdit();
     edit.replace(doc.uri, doc.lineAt(lineIndex).range, newLineText);
     await vscode.workspace.applyEdit(edit);
+
+    // 立即注册新标签到设置中（使用默认图标"tag"）
+    const tagService = TagIndexService.getInstance();
+    // 等待文档更新，然后手动注册新标签
+    setTimeout(async () => {
+      await tagService.autoRegisterTagsForDocument(doc);
+
+      // 强制刷新相关的view，确保新标签及其图标显示
+      setTimeout(() => {
+        // 触发tagService的事件，让所有监听器更新
+        tagService.scanWorkspace();
+      }, 50);
+    }, 100);
   }
 }

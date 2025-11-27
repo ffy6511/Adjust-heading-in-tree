@@ -203,29 +203,49 @@ export class TagDefinitionsPanel {
     });
   }
 
+  /**
+   * 验证标签名称是否合法（允许中文字符、标点符号，只要不是空格就行）
+   */
+  private _validateTagName(name: string): string | null {
+    if (!name || !name.trim()) {
+      return "Tag name cannot be empty";
+    }
+    if (/\s/.test(name)) {
+      return "Tag name cannot contain spaces";
+    }
+    return null;
+  }
+
   private async _saveDefinition(def: TagDefinition, oldName?: string) {
+    // 验证标签名称
+    const validationError = this._validateTagName(def.name);
+    if (validationError) {
+      vscode.window.showErrorMessage(validationError);
+      return;
+    }
+
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
-    const defs = config.get<TagDefinition[]>("tags.definitions", []);
+    const userDefs = config.get<TagDefinition[]>("tags.definitions", []);
 
     if (oldName && oldName !== def.name) {
-      // 重命名：先移除旧的
-      const idx = defs.findIndex((d) => d.name === oldName);
+      // 重命名：从用户配置中移除旧的
+      const idx = userDefs.findIndex((d) => d.name === oldName);
       if (idx >= 0) {
-        defs.splice(idx, 1);
+        userDefs.splice(idx, 1);
       }
     }
 
-    // 更新或添加
-    const existingIdx = defs.findIndex((d) => d.name === def.name);
+    // 更新或添加到用户配置
+    const existingIdx = userDefs.findIndex((d) => d.name === def.name);
     if (existingIdx >= 0) {
-      defs[existingIdx] = def;
+      userDefs[existingIdx] = def;
     } else {
-      defs.push(def);
+      userDefs.push(def);
     }
 
     await config.update(
       "tags.definitions",
-      defs,
+      userDefs,
       vscode.ConfigurationTarget.Global
     );
     this._tagService.scanWorkspace();
@@ -235,46 +255,47 @@ export class TagDefinitionsPanel {
 
   private async _deleteDefinition(name: string) {
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
-    const defs = config.get<TagDefinition[]>("tags.definitions", []);
-    const idx = defs.findIndex((d) => d.name === name);
+    const userDefs = config.get<TagDefinition[]>("tags.definitions", []);
+    const allDefs = this._tagService.getTagsFromSettings();
+
+    // 从完整列表中找到要删除的标签（包括预设标签）
+    const tagToDelete = allDefs.find((d) => d.name === name);
+    if (!tagToDelete) {
+      vscode.window.showErrorMessage(`Tag "${name}" not found.`);
+      return;
+    }
+
+    // 检查是否在用户配置中
+    const idx = userDefs.findIndex((d) => d.name === name);
     if (idx >= 0) {
-      // 保存被删除的标签以便撤销
-      const deletedTag = { ...defs[idx] };
-      defs.splice(idx, 1);
+      // 从用户配置中删除
+      userDefs.splice(idx, 1);
       await config.update(
         "tags.definitions",
-        defs,
+        userDefs,
         vscode.ConfigurationTarget.Global
       );
-      this._tagService.scanWorkspace();
-      this._sendDefinitions();
-
-      // 显示带撤销按钮的通知
-      const result = await vscode.window.showInformationMessage(
-        `Tag "${name}" deleted!`,
-        "Undo"
+    } else {
+      // 如果是预设标签，没有在用户配置中，先将其加入用户配置然后再删除
+      // 这样是为了彻底删除这个标签，让它不再显示
+      userDefs.push({ ...tagToDelete });
+      await config.update(
+        "tags.definitions",
+        userDefs,
+        vscode.ConfigurationTarget.Global
       );
-      if (result === "Undo") {
-        await this._restoreDefinition(deletedTag);
-      }
+      userDefs.pop(); // 移除刚刚添加的
+      await config.update(
+        "tags.definitions",
+        userDefs,
+        vscode.ConfigurationTarget.Global
+      );
     }
-  }
 
-  /**
-   * 恢复被删除的标签定义
-   */
-  private async _restoreDefinition(def: TagDefinition) {
-    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
-    const defs = config.get<TagDefinition[]>("tags.definitions", []);
-    defs.push(def);
-    await config.update(
-      "tags.definitions",
-      defs,
-      vscode.ConfigurationTarget.Global
-    );
     this._tagService.scanWorkspace();
     this._sendDefinitions();
-    vscode.window.showInformationMessage(`Tag "${def.name}" restored!`);
+
+    vscode.window.showInformationMessage(`Tag "${name}" deleted permanently!`);
   }
 
   /**
@@ -284,15 +305,7 @@ export class TagDefinitionsPanel {
     const name = await vscode.window.showInputBox({
       prompt: "Enter new tag name",
       placeHolder: "e.g., important, todo, review",
-      validateInput: (value) => {
-        if (!value || !value.trim()) {
-          return "Tag name cannot be empty";
-        }
-        if (!/^[a-zA-Z0-9_-]+$/.test(value.trim())) {
-          return "Tag name can only contain letters, numbers, underscores and hyphens";
-        }
-        return null;
-      },
+      validateInput: (value) => this._validateTagName(value),
     });
 
     if (name && name.trim()) {
@@ -329,15 +342,117 @@ export class TagDefinitionsPanel {
    * 确认删除标签（使用 VS Code 原生确认框）
    */
   private async _confirmDelete(name: string) {
-    const result = await vscode.window.showWarningMessage(
-      `Delete tag "${name}"?`,
-      { modal: true },
-      "Delete"
-    );
+    // 检查是否有文档使用该标签
+    const blocks = this._tagService.getBlocksByTag(name);
+    const hasReferences = blocks.length > 0;
 
-    if (result === "Delete") {
-      await this._deleteDefinition(name);
+    let result: string | undefined;
+    if (hasReferences) {
+      result = await vscode.window.showWarningMessage(
+        `Delete tag "${name}"? Found ${blocks.length} reference(s) in documents.`,
+        { modal: true },
+        "Delete Definition Only",
+        "Delete Definition and References"
+      );
+    } else {
+      result = await vscode.window.showWarningMessage(
+        `Delete tag "${name}"?`,
+        { modal: true },
+        "Delete"
+      );
+      if (result === "Delete") {
+        result = "Delete Definition Only";
+      }
     }
+
+    if (result === "Delete Definition Only") {
+      await this._deleteDefinition(name);
+    } else if (result === "Delete Definition and References") {
+      await this._deleteDefinition(name);
+      await this._removeTagReferencesFromFiles(name);
+    }
+  }
+
+  /**
+   * 从所有文件中删除标签引用
+   */
+  private async _removeTagReferencesFromFiles(tagName: string): Promise<void> {
+    // 转义正则特殊字符
+    const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const files = await vscode.workspace.findFiles("**/*.{md,typ}");
+
+    if (files.length === 0) {
+      return;
+    }
+
+    let totalChanged = 0;
+    const edit = new vscode.WorkspaceEdit();
+
+    for (const fileUri of files) {
+      try {
+        const doc = await vscode.workspace.openTextDocument(fileUri);
+        const text = doc.getText();
+
+        // 检查文件是否包含该标签
+        if (!text.includes(`#${tagName}`)) {
+          continue;
+        }
+
+        // 逐行处理
+        for (let i = 0; i < doc.lineCount; i++) {
+          const line = doc.lineAt(i);
+          const lineText = line.text;
+
+          // 匹配包含标签的注释部分
+          const commentMatch = lineText.match(/\/\/(.*)$/);
+          if (!commentMatch) {
+            continue;
+          }
+
+          const commentPart = commentMatch[1];
+          // 检查注释中是否包含目标标签
+          const tagRegex = new RegExp(`#${escapedTag}(?=\\s|$)`, "g");
+          if (!tagRegex.test(commentPart)) {
+            continue;
+          }
+
+          // 删除标签（保留其他标签和注释符号）
+          let newCommentPart = commentPart.replace(
+            new RegExp(`\\s*#${escapedTag}(?=\\s|$)`, "g"),
+            ""
+          );
+
+          // 清理多余空格
+          newCommentPart = newCommentPart.replace(/\s+/g, " ").trim();
+
+          let newLineText: string;
+          if (newCommentPart === "" || newCommentPart.match(/^\s*$/)) {
+            // 注释为空，删除整个注释部分（包括//）
+            newLineText = lineText.replace(/\s*\/\/.*$/, "");
+          } else {
+            // 保留非空注释
+            newLineText = lineText.replace(/\/\/.*$/, `// ${newCommentPart}`);
+          }
+
+          if (newLineText !== lineText) {
+            edit.replace(fileUri, line.range, newLineText);
+            totalChanged++;
+          }
+        }
+      } catch (err) {
+        console.error(`Error processing file ${fileUri.fsPath}:`, err);
+      }
+    }
+
+    if (totalChanged > 0) {
+      await vscode.workspace.applyEdit(edit);
+      vscode.window.showInformationMessage(
+        `Removed ${totalChanged} tag reference(s) from documents.`
+      );
+    }
+
+    this._tagService.scanWorkspace();
+    this._sendDefinitions();
   }
 
   /**
@@ -463,7 +578,8 @@ export class TagDefinitionsPanel {
             background: var(--vscode-button-secondaryHoverBackground);
         }
         .tag-info {
-            flex: 1;
+            flex: 1 1 auto;
+            min-width: 0;
         }
         .tag-name {
             font-weight: bold;
@@ -477,10 +593,37 @@ export class TagDefinitionsPanel {
             border: 1px solid var(--vscode-input-border);
             border-radius: 4px;
             padding: 4px 8px;
+            width: 100%;
+            min-width: 80px;
+            max-width: 200px;
+            box-sizing: border-box;
         }
         .tag-actions {
             display: flex;
-            gap: 8px;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .icon-btn {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            transition: all 0.15s ease;
+        }
+        .icon-btn:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+            transform: scale(1.05);
+        }
+        .icon-btn.delete-btn:hover {
+            background: var(--vscode-inputValidation-errorBackground);
+            color: var(--vscode-inputValidation-errorForeground);
         }
         .btn {
             padding: 6px 12px;
@@ -574,19 +717,59 @@ export class TagDefinitionsPanel {
         }
         .hidden { display: none !important; }
         .add-btn {
-            margin-top: 10px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        .add-btn:hover {
+            background: var(--vscode-button-hoverBackground);
         }
         .codicon { vertical-align: middle; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--vscode-widget-border);
+            padding-bottom: 12px;
+        }
+        .header h1 {
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+        .naming-hint {
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            color: var(--vscode-descriptionForeground);
+            font-size: 12px;
+            background: var(--vscode-textBlockQuote-background);
+            border-radius: 4px;
+            border-left: 3px solid var(--vscode-textBlockQuote-border);
+        }
     </style>
 </head>
 <body>
-    <h1><span class="codicon codicon-tag"></span> Manage Tag Definitions</h1>
+    <div class="header">
+        <h1><span class="codicon codicon-tag"></span> Manage Tag Definitions</h1>
+        <button class="add-btn" id="addBtn">
+            <span class="codicon codicon-plus"></span> New
+        </button>
+    </div>
+
+    <div class="naming-hint">
+        <span class="codicon codicon-info"></span>
+        Tag names can contain Chinese characters, punctuation, letters, numbers, etc. Space characters are not allowed.
+    </div>
 
     <div id="tagList" class="tag-list"></div>
-
-    <button class="btn btn-primary add-btn" id="addBtn">
-        <span class="codicon codicon-plus"></span> Add New Tag
-    </button>
 
     <div id="overlay" class="overlay hidden"></div>
     <div id="iconPicker" class="icon-picker hidden">
@@ -638,11 +821,11 @@ export class TagDefinitionsPanel {
                         </div>
                     </div>
                     <div class="tag-actions">
-                        <button class="btn btn-secondary save-btn" data-index="\${index}">
-                            <span class="codicon codicon-save"></span> Save
+                        <button class="icon-btn save-btn" data-index="\${index}" title="Save changes">
+                            <span class="codicon codicon-check"></span>
                         </button>
-                        <button class="btn btn-danger delete-btn" data-index="\${index}">
-                            <span class="codicon codicon-trash"></span>
+                        <button class="icon-btn delete-btn" data-index="\${index}" title="Delete tag">
+                            <span class="codicon codicon-close"></span>
                         </button>
                     </div>
                 \`;
@@ -692,6 +875,9 @@ export class TagDefinitionsPanel {
             if (editingTag !== null) {
                 definitions[editingTag].icon = icon;
                 renderTags();
+                // 立即保存图标更改
+                const def = definitions[editingTag];
+                vscode.postMessage({ command: 'saveDefinition', definition: def });
             }
             closeIconPicker();
         }

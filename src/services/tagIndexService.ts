@@ -87,10 +87,10 @@ export class TagIndexService {
 
   private updateDocumentIndex(document: vscode.TextDocument) {
     const matches = parseHeadings(document.getText());
-    const uri = document.uri;
+    const tags = new Set<string>();
 
     // First, remove all existing entries for this file
-    this.removeEntriesForFile(uri);
+    this.removeEntriesForFile(document.uri);
 
     // Then add new ones
     for (const match of matches) {
@@ -100,25 +100,97 @@ export class TagIndexService {
 
           const node: TaggedHeading = {
             ...match,
-            uri: uri,
-            id: `${uri.fsPath}:${match.line}`,
+            uri: document.uri,
+            id: `${document.uri.fsPath}:${match.line}`,
           };
 
           nodes.push(node);
           this.tagIndex.set(tag, nodes);
+          tags.add(tag);
         }
       }
     }
+
+    // 更新index就行了，不要在此处注册标签，在保存时才注册
+    this._onDidUpdateTags.fire();
   }
 
-  private removeEntriesForFile(uri: vscode.Uri) {
-    for (const [tag, nodes] of this.tagIndex.entries()) {
-      const filtered = nodes.filter((n) => n.uri.toString() !== uri.toString());
-      if (filtered.length === 0) {
-        this.tagIndex.delete(tag);
-      } else {
-        this.tagIndex.set(tag, filtered);
+  private removeEntriesForFile(uri?: vscode.Uri): void {
+    if (uri) {
+      for (const [tag, nodes] of this.tagIndex.entries()) {
+        const filtered = nodes.filter(
+          (n) => n.uri.toString() !== uri.toString()
+        );
+        if (filtered.length === 0) {
+          this.tagIndex.delete(tag);
+        } else {
+          this.tagIndex.set(tag, filtered);
+        }
       }
+    } else {
+      this.tagIndex.clear();
+    }
+  }
+
+  /**
+   * 文档保存时自动注册新标签
+   * @param document 被保存的文档
+   */
+  public async autoRegisterTagsForDocument(document: vscode.TextDocument) {
+    const matches = parseHeadings(document.getText());
+    const tags = new Set<string>();
+
+    for (const match of matches) {
+      if (match.tags && match.tags.length > 0) {
+        for (const tag of match.tags) {
+          tags.add(tag);
+        }
+      }
+    }
+
+    if (tags.size > 0) {
+      await this.autoRegisterNewTags(tags);
+    }
+  }
+
+  /**
+   * 自动注册新发现的标签到设置中
+   */
+  private async autoRegisterNewTags(tags: Set<string>) {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const existingDefs = config.get<TagDefinition[]>("tags.definitions", []);
+    const existingNames = new Set(existingDefs.map((d) => d.name));
+
+    const newDefs: TagDefinition[] = [];
+
+    for (const tag of tags) {
+      // 只跳过已存在的标签，不再有保留的预设标签概念
+      if (existingNames.has(tag)) {
+        continue;
+      }
+
+      // 验证标签名称格式，且长度至少为 2（只排除空格）
+      if (/^[^ ]{2,}$/.test(tag)) {
+        newDefs.push({
+          name: tag,
+          icon: "tag",
+          color: "charts.blue",
+        });
+      }
+    }
+
+    if (newDefs.length > 0) {
+      const updatedDefs = [...existingDefs, ...newDefs];
+      await config.update(
+        "tags.definitions",
+        updatedDefs,
+        vscode.ConfigurationTarget.Global
+      );
+      console.log(
+        `TagIndexService: Auto-registered ${
+          newDefs.length
+        } new tag(s): ${newDefs.map((d) => d.name).join(", ")}`
+      );
     }
   }
 
@@ -187,20 +259,9 @@ export class TagIndexService {
   public getTagsFromSettings(): TagDefinition[] {
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
     const defs = config.get<TagDefinition[]>("tags.definitions", []);
-    // Ensure defaults exist
-    const defaults = [
-      { name: "todo", color: "charts.orange", icon: "circle-large-outline" },
-      { name: "review", color: "charts.yellow", icon: "eye" },
-      { name: "highlight", color: "charts.blue", icon: "star" },
-    ];
 
-    // Merge: if name exists in user config, override default.
-    const merged = [...defs];
-    for (const d of defaults) {
-      if (!merged.find((m) => m.name === d.name)) {
-        merged.push(d);
-      }
-    }
-    return merged;
+    // 预设标签只用于首次初始化，不应该在删除后自动恢复
+    // 用户删除标签应该真正删除，不再显示
+    return defs;
   }
 }

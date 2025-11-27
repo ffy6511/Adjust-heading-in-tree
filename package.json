@@ -495,17 +495,17 @@
           "type": "array",
           "default": [
             {
-              "name": "todo",
+              "name": "TODO",
               "color": "charts.orange",
               "icon": "circle-large-outline"
             },
             {
-              "name": "review",
+              "name": "Review",
               "color": "charts.yellow",
               "icon": "eye"
             },
             {
-              "name": "highlight",
+              "name": "Highlight",
               "color": "charts.blue",
               "icon": "star"
             }
@@ -549,12 +549,8 @@
         "adjustHeadingInTree.view.hoverToolbar": {
           "type": "array",
           "default": [
-            "shiftUp",
-            "shiftDown",
-            "moveHeadingUp",
-            "moveHeadingDown",
-            "filterToSubtree",
-            "openExportMenu"
+            "editTags",
+            "filterToSubtree"
           ],
           "items": {
             "type": "string",
