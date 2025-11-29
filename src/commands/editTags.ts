@@ -201,6 +201,10 @@ async function handleQuickPickWithCreate(
   });
 
   quickPick.onDidHide(() => quickPick.dispose());
+
+  // 默认勾选已经存在的tags
+  quickPick.selectedItems = quickPick.items.filter((item) => item.picked);
+
   quickPick.show();
 }
 

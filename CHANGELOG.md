@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.2] - 2025-11-29
+
+### Feat
+
+- Added tag name support for Chinese and more characters
+- Add a convenient deletion function for blocks in tag view, and support the deletion of single tags and combined tags.
+
+### Refactor
+
+- Reconstructed webview related files to improve scalability and maintainability
+
 ## [0.3.1] - 2025-11-27
 
 ### Chore
@@ -12,9 +23,14 @@
 
 - Issues related to Tag deletion, modification, etc
 
-## [0.3.0] - 2025-11-27
+## 🎉[0.3.0] - 2025-11-27
 
 ### Feat
+
+<div align="center">
+  <img src="./resources/imgs/tag_view.png" alt="cover" width="80%">
+</div>
+**Use Tags to organize your files and jump between different chapters or even files with a simple click!**
 
 - Launched Tag View and Tag mechanism: allowing users to add 1 or more tags to block/subtree, and view the tag/tag combination of local/global files in the tag;
 - Provide default tags and allow users to create their own tags

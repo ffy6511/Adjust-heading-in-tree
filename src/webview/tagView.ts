@@ -106,6 +106,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           this.toggleScope();
           break;
         }
+        case "removeTagReferences": {
+          await this.removeTagReferences(data.uri, data.line, data.tagNames);
+          break;
+        }
       }
     });
 
@@ -131,6 +135,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         uri: string;
         fsPath: string;
         fileName: string;
+        tagName?: string;
       }>
     > = {};
 
@@ -146,6 +151,14 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           uri: b.uri.toString(),
           fsPath: b.uri.fsPath,
           fileName: path.basename(b.uri.fsPath),
+        }));
+      }
+
+      // Add tagName to blocks for deletion purposes
+      for (const tag of tags) {
+        payload[tag] = payload[tag].map((block) => ({
+          ...block,
+          tagName: tag, // Add tagName to each block
         }));
       }
     } else {
@@ -258,5 +271,66 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     <script src="${scriptUri}"></script>
 </body>
 </html>`;
+  }
+
+  /**
+   * 从指定的文件和行中移除多个标签的引用
+   */
+  private async removeTagReferences(
+    uriStr: string,
+    line: number,
+    tagNames: string[]
+  ): Promise<void> {
+    try {
+      const uri = vscode.Uri.parse(uriStr);
+      const document = await vscode.workspace.openTextDocument(uri);
+      const lineText = document.lineAt(line).text;
+
+      // 匹配包含标签的注释部分
+      const commentMatch = lineText.match(/\/\/(.*)$/);
+      if (!commentMatch) {
+        throw new Error("No comment found on this line");
+      }
+
+      const commentPart = commentMatch[1];
+      let newCommentPart = commentPart;
+
+      // 删除所有指定的标签
+      for (const tagName of tagNames) {
+        // 转义正则特殊字符
+        const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const tagRegex = new RegExp(`\\s*#${escapedTag}(?=\\s|$)`, "g");
+        newCommentPart = newCommentPart.replace(tagRegex, "").trim();
+      }
+
+      let newLineText: string;
+
+      if (newCommentPart === "" || newCommentPart.match(/^\s*$/)) {
+        // 注释为空，删除整个注释部分（包括//）
+        newLineText = lineText.replace(/\s*\/\/.*$/, "");
+      } else {
+        // 保留非空注释
+        newLineText = lineText.replace(/\/\/.*$/, `// ${newCommentPart}`);
+      }
+
+      // 应用编辑
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(
+        uri,
+        new vscode.Range(line, 0, line + 1, 0),
+        newLineText + "\n"
+      );
+
+      await vscode.workspace.applyEdit(edit);
+
+      // 重新扫描以更新索引
+      this._tagService.scanWorkspace();
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to remove tags: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 }

@@ -192,31 +192,66 @@ function renderBlocks() {
         return;
     }
 
-    candidates.forEach(block => {
-        const el = document.createElement('div');
-        el.className = 'block-item';
+candidates.forEach(block => {
+    const el = document.createElement('div');
+    el.className = 'block-item';
 
-        const header = document.createElement('div');
-        header.className = 'block-header';
-        header.innerHTML = '<span>' + block.fileName + ':' + (block.line + 1) + '</span>';
+    const header = document.createElement('div');
+    header.className = 'block-header';
+    header.innerHTML = '<span>' + block.fileName + ':' + (block.line + 1) + '</span>';
 
-        const content = document.createElement('div');
-        content.className = 'block-content';
-        content.textContent = block.text; // Text content
+    const content = document.createElement('div');
+    content.className = 'block-content';
+    content.textContent = block.text; // Text content
 
-        el.appendChild(header);
-        el.appendChild(content);
+    // Create delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.innerHTML = '<span class="codicon codicon-close"></span>';
+    deleteBtn.title = 'Click to delete this tag reference';
 
-        el.addEventListener('click', () => {
+    // Handle delete button clicks
+    let confirmTimeout = null;
+    let originalIconHTML = deleteBtn.innerHTML;
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering the main click handler
+
+        if (deleteBtn.classList.contains('confirm')) {
+            // Second click - confirmed, delete all selected tag references from this block
+            clearTimeout(confirmTimeout);
             vscode.postMessage({
-                type: 'openLocation',
+                type: 'removeTagReferences',
                 uri: block.uri,
-                line: block.line
+                line: block.line,
+                tagNames: Array.from(state.selectedTags) // Pass all currently selected tags
             });
-        });
+        } else {
+            // First click - show confirmation
+            deleteBtn.classList.add('confirm');
+            deleteBtn.innerHTML = ''; // Clear the icon when showing text
 
-        blocksContainer.appendChild(el);
+            // Auto-revert after 2 seconds if not clicked
+            confirmTimeout = setTimeout(() => {
+                deleteBtn.classList.remove('confirm');
+                deleteBtn.innerHTML = originalIconHTML;
+            }, 2000);
+        }
     });
+
+    el.appendChild(header);
+    el.appendChild(content);
+    el.appendChild(deleteBtn);
+
+    el.addEventListener('click', () => {
+        vscode.postMessage({
+            type: 'openLocation',
+            uri: block.uri,
+            line: block.line
+        });
+    });
+
+    blocksContainer.appendChild(el);
+});
 }
 
 // Initial request (optional if backend pushes on connect)
