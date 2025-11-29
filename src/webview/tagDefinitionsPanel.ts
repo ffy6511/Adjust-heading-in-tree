@@ -528,233 +528,34 @@ export class TagDefinitionsPanel {
       )
     );
 
+    const styleUri = this._panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "resources",
+        "webview",
+        "tagDefinitions",
+        "style.css"
+      )
+    );
+
+    const scriptUri = this._panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "resources",
+        "webview",
+        "tagDefinitions",
+        "main.js"
+      )
+    );
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="${codiconsUri}" rel="stylesheet" />
+    <link href="${styleUri}" rel="stylesheet" />
     <title>Manage Your Tags</title>
-    <style>
-        body {
-            font-family: var(--vscode-font-family);
-            padding: 20px;
-            color: var(--vscode-foreground);
-            background: var(--vscode-editor-background);
-        }
-        h1 {
-            font-size: 1.4em;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--vscode-widget-border);
-            padding-bottom: 10px;
-        }
-        .tag-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .tag-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: var(--vscode-editor-inactiveSelectionBackground);
-            border-radius: 6px;
-            border: 1px solid var(--vscode-widget-border);
-        }
-        .tag-icon {
-            font-size: 20px;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--vscode-badge-background);
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        .tag-icon:hover {
-            background: var(--vscode-button-secondaryHoverBackground);
-        }
-        .tag-info {
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-        .tag-name {
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-        .tag-name input {
-            font-size: 1.1em;
-            font-weight: bold;
-            background: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 4px;
-            padding: 4px 8px;
-            width: 100%;
-            min-width: 80px;
-            max-width: 200px;
-            box-sizing: border-box;
-        }
-        .tag-actions {
-            display: flex;
-            gap: 4px;
-            flex-shrink: 0;
-        }
-        .icon-btn {
-            width: 28px;
-            height: 28px;
-            padding: 0;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--vscode-button-secondaryBackground);
-            color: var(--vscode-button-secondaryForeground);
-            transition: all 0.15s ease;
-        }
-        .icon-btn:hover {
-            background: var(--vscode-button-secondaryHoverBackground);
-            transform: scale(1.05);
-        }
-        .icon-btn.delete-btn:hover {
-            background: var(--vscode-inputValidation-errorBackground);
-            color: var(--vscode-inputValidation-errorForeground);
-        }
-        .btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .btn-primary {
-            background: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-        }
-        .btn-primary:hover {
-            background: var(--vscode-button-hoverBackground);
-        }
-        .btn-secondary {
-            background: var(--vscode-button-secondaryBackground);
-            color: var(--vscode-button-secondaryForeground);
-        }
-        .btn-secondary:hover {
-            background: var(--vscode-button-secondaryHoverBackground);
-        }
-        .btn-danger {
-            background: var(--vscode-inputValidation-errorBackground);
-            color: var(--vscode-inputValidation-errorForeground);
-        }
-        .icon-picker {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-widget-border);
-            border-radius: 8px;
-            padding: 16px;
-            max-width: 400px;
-            max-height: 80vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            z-index: 1000;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .icon-picker-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .icon-picker-search {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 12px;
-            background: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 4px;
-        }
-        .icon-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 8px;
-            overflow-y: auto;
-            max-height: 300px;
-            padding: 4px;
-        }
-        .icon-option {
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border-radius: 4px;
-            font-size: 18px;
-        }
-        .icon-option:hover {
-            background: var(--vscode-list-hoverBackground);
-        }
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 999;
-        }
-        .hidden { display: none !important; }
-        .add-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            background: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-        }
-        .add-btn:hover {
-            background: var(--vscode-button-hoverBackground);
-        }
-        .codicon { vertical-align: middle; }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            border-bottom: 1px solid var(--vscode-widget-border);
-            padding-bottom: 12px;
-        }
-        .header h1 {
-            margin: 0;
-            border: none;
-            padding: 0;
-        }
-        .naming-hint {
-            padding: 8px 12px;
-            margin-bottom: 16px;
-            color: var(--vscode-descriptionForeground);
-            font-size: 12px;
-            background: var(--vscode-textBlockQuote-background);
-            border-radius: 4px;
-            border-left: 3px solid var(--vscode-textBlockQuote-border);
-        }
-    </style>
 </head>
 <body>
     <div class="header">
@@ -785,158 +586,8 @@ export class TagDefinitionsPanel {
 
     <script>
         const vscode = acquireVsCodeApi();
-        let definitions = [];
-        let allIcons = [];
-        let editingTag = null;
-        let iconPickerCallback = null;
-
-        // 请求初始数据
-        vscode.postMessage({ command: 'getDefinitions' });
-
-        window.addEventListener('message', event => {
-            const msg = event.data;
-            if (msg.type === 'definitions') {
-                definitions = msg.data;
-                allIcons = msg.icons;
-                renderTags();
-            } else if (msg.type === 'renameComplete') {
-                // 重命名完成
-            }
-        });
-
-        function renderTags() {
-            const container = document.getElementById('tagList');
-            container.innerHTML = '';
-
-            definitions.forEach((def, index) => {
-                const card = document.createElement('div');
-                card.className = 'tag-card';
-                card.innerHTML = \`
-                    <div class="tag-icon" data-index="\${index}" title="Click to change icon">
-                        <span class="codicon codicon-\${def.icon || 'tag'}"></span>
-                    </div>
-                    <div class="tag-info">
-                        <div class="tag-name">
-                            <input type="text" value="\${def.name}" data-index="\${index}" data-original="\${def.name}">
-                        </div>
-                    </div>
-                    <div class="tag-actions">
-                        <button class="icon-btn save-btn" data-index="\${index}" title="Save changes">
-                            <span class="codicon codicon-check"></span>
-                        </button>
-                        <button class="icon-btn delete-btn" data-index="\${index}" title="Delete tag">
-                            <span class="codicon codicon-close"></span>
-                        </button>
-                    </div>
-                \`;
-                container.appendChild(card);
-            });
-
-            // 绑定事件
-            document.querySelectorAll('.tag-icon').forEach(el => {
-                el.addEventListener('click', () => openIconPicker(parseInt(el.dataset.index)));
-            });
-            document.querySelectorAll('.save-btn').forEach(el => {
-                el.addEventListener('click', () => saveTag(parseInt(el.dataset.index)));
-            });
-            document.querySelectorAll('.delete-btn').forEach(el => {
-                el.addEventListener('click', () => deleteTag(parseInt(el.dataset.index)));
-            });
-        }
-
-        function openIconPicker(index) {
-            editingTag = index;
-            const picker = document.getElementById('iconPicker');
-            const overlay = document.getElementById('overlay');
-            const grid = document.getElementById('iconGrid');
-
-            renderIconGrid(allIcons);
-
-            picker.classList.remove('hidden');
-            overlay.classList.remove('hidden');
-            document.getElementById('iconSearch').value = '';
-            document.getElementById('iconSearch').focus();
-        }
-
-        function renderIconGrid(icons) {
-            const grid = document.getElementById('iconGrid');
-            grid.innerHTML = '';
-            icons.forEach(icon => {
-                const el = document.createElement('div');
-                el.className = 'icon-option';
-                el.innerHTML = \`<span class="codicon codicon-\${icon}"></span>\`;
-                el.title = icon;
-                el.addEventListener('click', () => selectIcon(icon));
-                grid.appendChild(el);
-            });
-        }
-
-        function selectIcon(icon) {
-            if (editingTag !== null) {
-                definitions[editingTag].icon = icon;
-                renderTags();
-                // 立即保存图标更改
-                const def = definitions[editingTag];
-                vscode.postMessage({ command: 'saveDefinition', definition: def });
-            }
-            closeIconPicker();
-        }
-
-        function closeIconPicker() {
-            document.getElementById('iconPicker').classList.add('hidden');
-            document.getElementById('overlay').classList.add('hidden');
-            editingTag = null;
-        }
-
-        document.getElementById('closeIconPicker').addEventListener('click', closeIconPicker);
-        document.getElementById('overlay').addEventListener('click', closeIconPicker);
-        document.getElementById('iconSearch').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtered = allIcons.filter(i => i.includes(query));
-            renderIconGrid(filtered);
-        });
-
-        function saveTag(index) {
-            console.log('saveTag called, index:', index);
-            const input = document.querySelector(\`input[data-index="\${index}"]\`);
-            if (!input) {
-                console.error('Input not found for index:', index);
-                return;
-            }
-            const newName = input.value.trim();
-            const oldName = input.dataset.original;
-
-            console.log('Saving tag:', { newName, oldName, index });
-
-            if (!newName) {
-                // 使用 VS Code 原生方式显示错误
-                vscode.postMessage({ command: 'showError', message: 'Tag name cannot be empty' });
-                return;
-            }
-
-            const def = { ...definitions[index], name: newName };
-
-            // 如果名称变化，使用扩展端确认对话框
-            if (oldName && oldName !== newName) {
-                vscode.postMessage({ command: 'confirmRename', definition: def, oldName, newName });
-            } else {
-                vscode.postMessage({ command: 'saveDefinition', definition: def });
-            }
-        }
-
-        function deleteTag(index) {
-            console.log('deleteTag called, index:', index);
-            const def = definitions[index];
-            // 使用扩展端确认对话框
-            vscode.postMessage({ command: 'confirmDelete', name: def.name });
-        }
-
-        document.getElementById('addBtn').addEventListener('click', () => {
-            console.log('Add button clicked');
-            // 使用扩展端输入框
-            vscode.postMessage({ command: 'addNewTag' });
-        });
     </script>
+    <script src="${scriptUri}"></script>
 </body>
 </html>`;
   }

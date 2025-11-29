@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Your Tags</title>
+</head>
+<body>
+    <div class="header">
+        <h1><span class="codicon codicon-tag"></span> Manage Your Tags</h1>
+        <button class="add-btn" id="addBtn">
+            <span class="codicon codicon-plus"></span> New
+        </button>
+    </div>
+
+    <div class="naming-hint">
+        <span class="codicon codicon-info"></span>
+        Tag names can contain Chinese characters, punctuation, letters, numbers, etc. Space characters are not allowed.
+    </div>
+
+    <div id="tagList" class="tag-list"></div>
+
+    <div id="overlay" class="overlay hidden"></div>
+    <div id="iconPicker" class="icon-picker hidden">
+        <div class="icon-picker-header">
+            <span>Select Icon</span>
+            <button class="btn btn-secondary" id="closeIconPicker">
+                <span class="codicon codicon-close"></span>
+            </button>
+        </div>
+        <input type="text" class="icon-picker-search" id="iconSearch" placeholder="Search icons...">
+        <div class="icon-grid" id="iconGrid"></div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tag View</title>
+</head>
+<body>
+
+    <div class="header">
+        <input type="text" id="search" class="search-box" placeholder="Search tags...">
+        <div class="search-controls">
+            <button class="toggle-btn" id="scope-btn" title="Toggle scope (global/current)">
+                <span class="codicon codicon-globe toggle-btn-icon active" id="scope-icon-globe"></span>
+                <span class="codicon codicon-file toggle-btn-icon" id="scope-icon-file"></span>
+            </button>
+            <button class="toggle-btn" id="select-btn" title="Toggle selection mode">
+                <span class="codicon codicon-list-selection toggle-btn-icon active" id="select-icon-single"></span>
+                <span class="codicon codicon-list-filter toggle-btn-icon" id="select-icon-mult"></span>
+            </button>
+        </div>
+    </div>
+    <div id="tags" class="tags-container"></div>
+    <div id="blocks" class="block-list"></div>
+
+</body>
+</html>

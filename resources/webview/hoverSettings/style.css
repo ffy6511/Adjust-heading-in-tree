@@ -1,0 +1,209 @@
+:root {
+  --container-paddding: 20px;
+  --input-padding-vertical: 6px;
+  --input-padding-horizontal: 4px;
+  --input-margin-vertical: 4px;
+  --input-margin-horizontal: 0;
+}
+
+body {
+  font-family: var(--vscode-font-family);
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  padding: 20px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+h2 {
+  font-size: 1.2em;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.toolbar-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 10px;
+  background-color: var(--vscode-editor-snippetFinalTabstopHighlightBorder);
+  /* Just a slight background distinction */
+  background-color: var(--vscode-editorWidget-background);
+  border: 1px dashed var(--vscode-editorGroup-border);
+  border-radius: 6px;
+  margin-bottom: 30px;
+  overflow-x: auto;
+}
+
+.toolbar-preview.drag-over {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-editor-snippetTabstopHighlightBackground);
+}
+
+.toolbar-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: grab;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  position: relative;
+}
+
+.toolbar-item:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.toolbar-item:active {
+  cursor: grabbing;
+}
+
+.codicon {
+  font-size: 16px;
+}
+
+.available-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.item-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background-color: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 6px;
+  cursor: grab;
+  transition: border-color 0.2s;
+}
+
+.item-card:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.item-card:active {
+  cursor: grabbing;
+}
+
+/* 已选中项的禁用样式：降低透明度，显示禁止拖拽的视觉提示 */
+.item-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.item-card.disabled:hover {
+  border-color: var(--vscode-widget-border);
+  cursor: not-allowed;
+}
+
+.item-card.disabled:active {
+  cursor: not-allowed;
+}
+
+.item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: var(--vscode-keybindingLabel-background);
+  border: 1px solid var(--vscode-keybindingLabel-border);
+  color: var(--vscode-keybindingLabel-foreground);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.item-title {
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.item-desc {
+  font-size: 0.8em;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trash-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: -16px; /* 向上偏移，平衡底部文字 */
+}
+
+.trash-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px dashed var(--vscode-errorForeground);
+  border-radius: 4px;
+  color: var(--vscode-errorForeground);
+  transition: all 0.2s;
+  cursor: default;
+}
+
+.trash-zone.drag-over {
+  background-color: var(--vscode-inputValidation-errorBackground);
+  border-style: solid;
+}
+
+.trash-label {
+  font-size: 0.75em;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 60px;
+  word-wrap: break-word;
+}
+
+.empty-placeholder {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  font-size: 0.9em;
+  pointer-events: none;
+}
+
+.actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+button.save-btn {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button.save-btn:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
