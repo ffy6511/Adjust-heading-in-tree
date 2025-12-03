@@ -295,7 +295,7 @@ candidates.forEach(block => {
         if (block.breadcrumb && block.breadcrumb.length > 0) {
             breadcrumbTimer = setTimeout(() => {
                 showBreadcrumbTooltip(el, block.breadcrumb);
-            }, 500);
+            }, 750);
         }
     });
 

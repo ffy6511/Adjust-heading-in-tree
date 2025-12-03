@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.3] - 2025-12-03
+
+### Feat
+
+- Add more optional ICONS to the tags
+- Add the "ping" function to limit the number of tags displayed in the view
+- Add a tooltip to the block of the tag view to display the title path
+
+### style
+
+- Optimize the item style of the panel;
+
 ## [0.3.2] - 2025-11-29
 
 ### Feat

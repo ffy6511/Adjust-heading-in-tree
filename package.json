@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -13,13 +13,14 @@
   },
   "categories": [
     "Formatters",
-    "Notebooks"
+    "Notebooks",
+    "Visualization"
   ],
   "keywords": [
-    "markdown",
-    "typst",
-    "headings",
-    "navigation"
+    "Markdown",
+    "Typst",
+    "TOC",
+    "Tags"
   ],
   "activationEvents": [
     "onCommand:headingNavigator.adjustTreeLevel",
@@ -68,7 +69,7 @@
       "headingNavigator": [
         {
           "id": "headingNavigator.headingTree",
-          "name": "Adjust Heading Tree"
+          "name": "TOC View"
         },
         {
           "id": "headingNavigator.tagView",
@@ -123,12 +124,12 @@
       },
       {
         "command": "headingNavigator.adjustTreeLevel",
-        "title": "Adjust Heading Tree Level",
+        "title": "TOC Level",
         "icon": "$(list-tree)"
       },
       {
         "command": "headingNavigator.showHelp",
-        "title": "Adjust Heading Tree Help",
+        "title": "TOC Help",
         "icon": "$(question)"
       },
       {
@@ -176,7 +177,7 @@
       },
       {
         "command": "headingNavigator.manageTagDefinitions",
-        "title": "Manage Tag Definitions",
+        "title": "Manage Tags",
         "icon": "$(settings-gear)"
       }
     ],
@@ -494,17 +495,20 @@
             {
               "name": "TODO",
               "color": "charts.orange",
-              "icon": "circle-large-outline"
+              "icon": "circle-large-outline",
+              "pinned": false
             },
             {
               "name": "Review",
               "color": "charts.yellow",
-              "icon": "eye"
+              "icon": "eye",
+              "pinned": false
             },
             {
               "name": "Highlight",
               "color": "charts.blue",
-              "icon": "star"
+              "icon": "star",
+              "pinned": false
             }
           ],
           "description": "Custom definitions for tags including color and icon.",
@@ -519,6 +523,11 @@
               },
               "icon": {
                 "type": "string"
+              },
+              "pinned": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether this tag should be pinned to the top of Tag View."
               }
             }
           }

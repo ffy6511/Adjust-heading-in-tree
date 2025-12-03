@@ -36,7 +36,7 @@ const HELP_ITEMS: HelpItem[] = [
   {
     label: "Toggle navigator visibility",
     description: "Cmd/Ctrl + Shift + T",
-    detail: "Show or hide the Adjust Heading Tree view.",
+    detail: "Show or hide the TOC view.",
     commandId: "headingNavigator.toggle",
   },
   {
@@ -66,7 +66,7 @@ export function registerHelpCommand(): vscode.Disposable {
     "headingNavigator.showHelp",
     async () => {
       const selection = await vscode.window.showQuickPick(HELP_ITEMS, {
-        title: "Adjust Heading Tree – Shortcuts",
+        title: "TOC – Shortcuts",
         placeHolder: "Choose a shortcut to open keybindings and customize it.",
       });
 

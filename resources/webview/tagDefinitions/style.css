@@ -133,7 +133,8 @@ h1 {
   border: 1px solid var(--vscode-widget-border);
   border-radius: 8px;
   padding: 16px;
-  max-width: 400px;
+  width: clamp(360px, 70vw, 760px);
+  max-width: 90vw;
   max-height: 80vh;
   overflow: hidden;
   display: flex;
@@ -148,7 +149,7 @@ h1 {
   margin-bottom: 12px;
 }
 .icon-picker-search {
-  width: 100%;
+  width: 80%;
   padding: 8px;
   margin-bottom: 12px;
   background: var(--vscode-input-background);
@@ -158,7 +159,7 @@ h1 {
 }
 .icon-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
   gap: 8px;
   overflow-y: auto;
   max-height: 300px;
@@ -171,7 +172,7 @@ h1 {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 50%;
   font-size: 18px;
 }
 .icon-option:hover {
