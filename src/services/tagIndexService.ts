@@ -5,16 +5,19 @@ export interface TagDefinition {
   name: string;
   color?: string;
   icon?: string;
+  pinned?: boolean;
 }
 
 export interface TaggedHeading extends HeadingMatch {
   uri: vscode.Uri;
   id: string; // Unique ID for keying (fsPath + line)
+  breadcrumb?: string[];
 }
 
 export class TagIndexService {
   private static instance: TagIndexService;
   private tagIndex: Map<string, TaggedHeading[]> = new Map();
+  private headingBreadcrumbs: Map<string, Map<number, string[]>> = new Map();
   private _onDidUpdateTags = new vscode.EventEmitter<void>();
   public readonly onDidUpdateTags = this._onDidUpdateTags.event;
 
@@ -92,6 +95,9 @@ export class TagIndexService {
     // First, remove all existing entries for this file
     this.removeEntriesForFile(document.uri);
 
+    const breadcrumbs = this.computeBreadcrumbs(matches);
+    this.headingBreadcrumbs.set(document.uri.toString(), breadcrumbs);
+
     // Then add new ones
     for (const match of matches) {
       if (match.tags && match.tags.length > 0) {
@@ -102,6 +108,7 @@ export class TagIndexService {
             ...match,
             uri: document.uri,
             id: `${document.uri.fsPath}:${match.line}`,
+            breadcrumb: breadcrumbs.get(match.line),
           };
 
           nodes.push(node);
@@ -127,9 +134,45 @@ export class TagIndexService {
           this.tagIndex.set(tag, filtered);
         }
       }
+      this.headingBreadcrumbs.delete(uri.toString());
     } else {
       this.tagIndex.clear();
+      this.headingBreadcrumbs.clear();
     }
+  }
+
+  private computeBreadcrumbs(matches: HeadingMatch[]): Map<number, string[]> {
+    const breadcrumbs = new Map<number, string[]>();
+    const stack: HeadingMatch[] = [];
+
+    for (const match of matches) {
+      while (stack.length > 0 && stack[stack.length - 1].level >= match.level) {
+        stack.pop();
+      }
+
+      stack.push(match);
+      breadcrumbs.set(
+        match.line,
+        stack.map((item) => item.text)
+      );
+    }
+
+    return breadcrumbs;
+  }
+
+  public getBreadcrumb(uri: vscode.Uri, line: number): string[] | undefined {
+    return this.headingBreadcrumbs.get(uri.toString())?.get(line);
+  }
+
+  private normalizeDefinitions(defs: TagDefinition[] = []): TagDefinition[] {
+    return defs.map((def) => ({
+      ...def,
+      pinned: !!def.pinned,
+    }));
+  }
+
+  private countPinned(defs: TagDefinition[]): number {
+    return defs.filter((def) => def.pinned).length;
   }
 
   /**
@@ -158,8 +201,11 @@ export class TagIndexService {
    */
   private async autoRegisterNewTags(tags: Set<string>) {
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
-    const existingDefs = config.get<TagDefinition[]>("tags.definitions", []);
+    const existingDefs = this.normalizeDefinitions(
+      config.get<TagDefinition[]>("tags.definitions", [])
+    );
     const existingNames = new Set(existingDefs.map((d) => d.name));
+    let pinnedCount = this.countPinned(existingDefs);
 
     const newDefs: TagDefinition[] = [];
 
@@ -171,10 +217,15 @@ export class TagIndexService {
 
       // 验证标签名称格式，且长度至少为 2（只排除空格）
       if (/^[^ ]{2,}$/.test(tag)) {
+        const shouldPin = pinnedCount < 6;
+        if (shouldPin) {
+          pinnedCount++;
+        }
         newDefs.push({
           name: tag,
           icon: "tag",
           color: "charts.blue",
+          pinned: shouldPin,
         });
       }
     }
@@ -262,6 +313,6 @@ export class TagIndexService {
 
     // 预设标签只用于首次初始化，不应该在删除后自动恢复
     // 用户删除标签应该真正删除，不再显示
-    return defs;
+    return this.normalizeDefinitions(defs);
   }
 }

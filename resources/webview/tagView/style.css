@@ -191,3 +191,24 @@ body {
   font-size: 10px;
   white-space: nowrap;
 }
+.breadcrumb-tooltip {
+  position: fixed;
+  padding: 6px 8px;
+  background: var(--vscode-editorHoverWidget-background);
+  color: var(--vscode-editorHoverWidget-foreground);
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  max-width: 280px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -8px);
+  transition: opacity 0.1s ease;
+  z-index: 100;
+  white-space: normal;
+  word-break: break-word;
+}
+.breadcrumb-tooltip.visible {
+  opacity: 1;
+}

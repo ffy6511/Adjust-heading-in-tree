@@ -17,6 +17,10 @@ const blocksContainer = document.getElementById('blocks');
 const searchInput = document.getElementById('search');
 const selectBtn = document.getElementById('select-btn');
 const scopeBtn = document.getElementById('scope-btn');
+const breadcrumbTooltip = document.createElement('div');
+breadcrumbTooltip.className = 'breadcrumb-tooltip';
+document.body.appendChild(breadcrumbTooltip);
+let breadcrumbTimer = null;
 
 // 消息处理
 window.addEventListener('message', event => {
@@ -66,6 +70,8 @@ scopeBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'toggleScope' });
 });
 
+blocksContainer.addEventListener('scroll', hideBreadcrumbTooltip);
+
 searchInput.addEventListener('input', (e) => {
     state.searchQuery = e.target.value.toLowerCase();
     renderTags();
@@ -104,6 +110,23 @@ function updateSelectBtn() {
     }
 }
 
+function showBreadcrumbTooltip(target, breadcrumb) {
+    if (!breadcrumb || breadcrumb.length === 0) {
+        return;
+    }
+    const text = breadcrumb.join(' > ');
+    breadcrumbTooltip.textContent = text;
+    const rect = target.getBoundingClientRect();
+    breadcrumbTooltip.style.left = `${rect.left + rect.width / 2}px`;
+    const top = Math.max(8, rect.top - 8);
+    breadcrumbTooltip.style.top = `${top}px`;
+    breadcrumbTooltip.classList.add('visible');
+}
+
+function hideBreadcrumbTooltip() {
+    breadcrumbTooltip.classList.remove('visible');
+}
+
 function getTagStyle(tagName) {
     const def = state.definitions.find(d => d.name === tagName);
     return def;
@@ -117,14 +140,37 @@ function render() {
 function renderTags() {
     tagsContainer.innerHTML = '';
 
-    const filteredTags = state.tags.filter(t => t.toLowerCase().includes(state.searchQuery));
+    const baseTags = state.tags;
+    let tagsToRender = [];
 
-    if (filteredTags.length === 0) {
+    if (state.searchQuery) {
+        tagsToRender = baseTags.filter(t => t.toLowerCase().includes(state.searchQuery));
+    } else {
+        const pinnedSet = new Set(
+            state.definitions.filter(def => def.pinned).map(def => def.name)
+        );
+        const pinnedTags = [];
+        for (const tag of baseTags) {
+            if (pinnedSet.has(tag)) {
+                pinnedTags.push(tag);
+                if (pinnedTags.length >= 6) {
+                    break;
+                }
+            }
+        }
+        if (pinnedTags.length > 0) {
+            tagsToRender = pinnedTags;
+        } else {
+            tagsToRender = baseTags;
+        }
+    }
+
+    if (tagsToRender.length === 0) {
             tagsContainer.innerHTML = '<span style="opacity:0.6; font-size:0.9em; padding:4px;">No tags found</span>';
             return;
     }
 
-    filteredTags.forEach(tag => {
+    tagsToRender.forEach(tag => {
         const el = document.createElement('div');
         el.className = 'tag-chip';
         if (state.selectedTags.has(tag)) {
@@ -165,6 +211,8 @@ function renderTags() {
 }
 
 function renderBlocks() {
+    clearTimeout(breadcrumbTimer);
+    hideBreadcrumbTooltip();
     blocksContainer.innerHTML = '';
 
     if (state.selectedTags.size === 0) {
@@ -242,7 +290,22 @@ candidates.forEach(block => {
     el.appendChild(content);
     el.appendChild(deleteBtn);
 
+    el.addEventListener('mouseenter', () => {
+        clearTimeout(breadcrumbTimer);
+        if (block.breadcrumb && block.breadcrumb.length > 0) {
+            breadcrumbTimer = setTimeout(() => {
+                showBreadcrumbTooltip(el, block.breadcrumb);
+            }, 500);
+        }
+    });
+
+    el.addEventListener('mouseleave', () => {
+        clearTimeout(breadcrumbTimer);
+        hideBreadcrumbTooltip();
+    });
+
     el.addEventListener('click', () => {
+        hideBreadcrumbTooltip();
         vscode.postMessage({
             type: 'openLocation',
             uri: block.uri,

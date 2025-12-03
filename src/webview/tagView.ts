@@ -136,6 +136,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         fsPath: string;
         fileName: string;
         tagName?: string;
+        breadcrumb?: string[];
       }>
     > = {};
 
@@ -151,6 +152,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           uri: b.uri.toString(),
           fsPath: b.uri.fsPath,
           fileName: path.basename(b.uri.fsPath),
+          breadcrumb:
+            b.breadcrumb ??
+            this._tagService.getBreadcrumb(b.uri, b.line) ??
+            [],
         }));
       }
 
@@ -174,6 +179,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             uri: b.uri.toString(),
             fsPath: b.uri.fsPath,
             fileName: path.basename(b.uri.fsPath),
+            breadcrumb:
+              b.breadcrumb ??
+              this._tagService.getBreadcrumb(b.uri, b.line) ??
+              [],
           }));
         }
       } else {

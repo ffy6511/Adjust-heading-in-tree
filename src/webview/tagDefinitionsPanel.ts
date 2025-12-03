@@ -165,7 +165,7 @@ export class TagDefinitionsPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "tagDefinitions",
-      "Manage Your Tags",
+      "Manage Tags",
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -216,6 +216,17 @@ export class TagDefinitionsPanel {
     return null;
   }
 
+  private _normalizeDefinitions(defs: TagDefinition[]): TagDefinition[] {
+    return defs.map((def) => ({
+      ...def,
+      pinned: !!def.pinned,
+    }));
+  }
+
+  private _countPinned(defs: TagDefinition[]): number {
+    return defs.filter((def) => def.pinned).length;
+  }
+
   private async _saveDefinition(def: TagDefinition, oldName?: string) {
     // 验证标签名称
     const validationError = this._validateTagName(def.name);
@@ -225,7 +236,9 @@ export class TagDefinitionsPanel {
     }
 
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
-    const userDefs = config.get<TagDefinition[]>("tags.definitions", []);
+    const userDefs = this._normalizeDefinitions(
+      config.get<TagDefinition[]>("tags.definitions", [])
+    );
 
     if (oldName && oldName !== def.name) {
       // 重命名：从用户配置中移除旧的
@@ -235,12 +248,43 @@ export class TagDefinitionsPanel {
       }
     }
 
-    // 更新或添加到用户配置
+    let pinnedCount = this._countPinned(userDefs);
+    const normalizedDef: TagDefinition = { ...def, pinned: !!def.pinned };
+
     const existingIdx = userDefs.findIndex((d) => d.name === def.name);
+    const willPin =
+      normalizedDef.pinned &&
+      (existingIdx < 0 || !userDefs[existingIdx].pinned);
+
+    if (willPin && pinnedCount >= 6) {
+      vscode.window.showErrorMessage("Maximum 6 pinned tags allowed");
+      return;
+    }
+
+    if (
+      !oldName &&
+      existingIdx < 0 &&
+      !normalizedDef.pinned &&
+      pinnedCount < 6
+    ) {
+      normalizedDef.pinned = true;
+      pinnedCount++;
+    }
+
+    // Update pinned count when toggling off an existing pinned tag
+    if (
+      existingIdx >= 0 &&
+      userDefs[existingIdx].pinned &&
+      !normalizedDef.pinned
+    ) {
+      pinnedCount = Math.max(0, pinnedCount - 1);
+    }
+
+    // 更新或添加到用户配置
     if (existingIdx >= 0) {
-      userDefs[existingIdx] = def;
+      userDefs[existingIdx] = normalizedDef;
     } else {
-      userDefs.push(def);
+      userDefs.push(normalizedDef);
     }
 
     await config.update(
@@ -555,19 +599,23 @@ export class TagDefinitionsPanel {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="${codiconsUri}" rel="stylesheet" />
     <link href="${styleUri}" rel="stylesheet" />
-    <title>Manage Your Tags</title>
+    <title>Manage Tags</title>
 </head>
 <body>
     <div class="header">
-        <h1><span class="codicon codicon-tag"></span> Manage Your Tags</h1>
-        <button class="add-btn" id="addBtn">
-            <span class="codicon codicon-plus"></span> New
-        </button>
+        <h1><span class="codicon codicon-tag"></span> Manage Tags</h1>
     </div>
 
     <div class="naming-hint">
         <span class="codicon codicon-info"></span>
-        Tag names can contain Chinese characters, punctuation, letters, numbers, etc. Space characters are not allowed.
+        Tag names can contain Chinese characters, punctuation, letters, numbers, etc. <strong> Space characters are not allowed. </strong>
+    </div>
+
+    <div class="controls-row">
+        <input type="text" id="tagSearch" class="tag-search" placeholder="Search tags...">
+        <button class="add-btn" id="addBtn">
+            <span class="codicon codicon-plus"></span> New
+        </button>
     </div>
 
     <div id="tagList" class="tag-list"></div>

@@ -13,16 +13,14 @@ h1 {
 .tag-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   margin-bottom: 20px;
 }
 .tag-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  background: var(--vscode-editor-inactiveSelectionBackground);
-  border-radius: 6px;
+  padding: 4px;
   border: 1px solid var(--vscode-widget-border);
 }
 .tag-icon {
@@ -44,12 +42,10 @@ h1 {
   min-width: 0;
 }
 .tag-name {
-  font-weight: bold;
-  font-size: 1.1em;
+  font-size: 1.05em;
 }
 .tag-name input {
-  font-size: 1.1em;
-  font-weight: bold;
+  font-size: 1.05em;
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border);
@@ -86,6 +82,19 @@ h1 {
 .icon-btn.delete-btn:hover {
   background: var(--vscode-inputValidation-errorBackground);
   color: var(--vscode-inputValidation-errorForeground);
+}
+.pin-btn {
+  position: relative;
+}
+.pin-btn.pinned {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.pin-btn:not(.pinned) {
+  opacity: 0.3;
+}
+.pin-btn:not(.pinned):hover {
+  opacity: 1;
 }
 .btn {
   padding: 6px 12px;
@@ -191,6 +200,7 @@ h1 {
   gap: 4px;
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
+  flex: 0 0 auto;
 }
 .add-btn:hover {
   background: var(--vscode-button-hoverBackground);
@@ -200,16 +210,41 @@ h1 {
 }
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 4px;
   border-bottom: 1px solid var(--vscode-widget-border);
-  padding-bottom: 12px;
+  padding-bottom: 4px;
 }
 .header h1 {
   margin: 0;
   border: none;
   padding: 0;
+  flex-shrink: 0;
+}
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  margin-bottom: 12px;
+}
+.tag-search {
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 320px;
+  padding: 6px 10px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.tag-search:focus {
+  outline: 1px solid var(--vscode-focusBorder);
 }
 .naming-hint {
   padding: 8px 12px;
@@ -219,4 +254,8 @@ h1 {
   background: var(--vscode-textBlockQuote-background);
   border-radius: 4px;
   border-left: 3px solid var(--vscode-textBlockQuote-border);
+}
+.empty-state {
+  padding: 12px;
+  color: var(--vscode-descriptionForeground);
 }
