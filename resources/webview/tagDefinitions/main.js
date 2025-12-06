@@ -7,16 +7,15 @@ let activePicker = null; // 'icon' | 'color' | null
 let iconPickerCallback = null;
 let searchValue = "";
 const presetColors = [
-    "#e53935",
+    "#e92825ff",
     "#fb8c00",
     "#fbc02d",
     "#43a047",
     "#00acc1",
     "#1e88e5",
-    "#8e44ad",
-    "#d81b60",
+    "#b14edbff",
     "#8d6e63",
-    "#95a5a6",
+    "#808080",
     "#34495e",
     "#f06292"
 ];
@@ -50,12 +49,12 @@ function renderTags() {
         const card = document.createElement('div');
         card.className = 'tag-card';
         card.innerHTML = `
+            <button class="color-btn" data-index="${index}" title="Choose color" style="--tag-color:${normalizeColor(def.color)}">
+            </button>
             <div class="tag-icon" data-index="${index}" title="Click to change icon">
                 <span class="codicon codicon-${def.icon || 'tag'}"></span>
             </div>
-            <button class="color-btn" data-index="${index}" title="Choose color" style="--tag-color:${normalizeColor(def.color)}">
-                <span class="color-chip"></span>
-            </button>
+
             <div class="tag-info">
                 <div class="tag-name">
                     <input type="text" value="${def.name}" data-index="${index}" data-original="${def.name}">

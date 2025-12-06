@@ -530,21 +530,21 @@
           "default": [
             {
               "name": "TODO",
-              "color": "charts.orange",
+              "color": "#808080",
               "icon": "circle-large-outline",
-              "pinned": false
+              "pinned": true
             },
             {
               "name": "Review",
-              "color": "charts.yellow",
+              "color": "#fbc02d",
               "icon": "eye",
-              "pinned": false
+              "pinned": true
             },
             {
-              "name": "Highlight",
-              "color": "charts.blue",
+              "name": "Spark",
+              "color": "#e92825ff",
               "icon": "star",
-              "pinned": false
+              "pinned": true
             }
           ],
           "description": "Custom definitions for tags including color and icon.",

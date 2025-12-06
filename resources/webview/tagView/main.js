@@ -318,18 +318,21 @@ function renderBlocks() {
         group.blocks.forEach(block => {
             const el = document.createElement('div');
             el.className = 'block-item';
-            el.style.borderLeft = `2px solid ${getColorForBlock(block)}`;
+            el.style.borderLeft = `3px solid color-mix(in srgb, ${getColorForBlock(block)} 60%, transparent)`;
 
             const content = document.createElement('div');
             content.className = 'block-content';
             content.textContent = block.text;
             el.appendChild(content);
 
-            if (block.breadcrumb && block.breadcrumb.length > 0) {
+            if (block.breadcrumb && block.breadcrumb.length > 1) {
+                const trail = block.breadcrumb.slice(0, -1);
                 const breadcrumb = document.createElement('div');
                 breadcrumb.className = 'block-breadcrumb';
-                breadcrumb.textContent = block.breadcrumb.join(' > ');
-                el.appendChild(breadcrumb);
+                breadcrumb.textContent = trail.join(' > ');
+                if (trail.length > 0) {
+                    el.appendChild(breadcrumb);
+                }
             }
 
             // 删除按钮：无论是否选择标签都可使用
@@ -384,6 +387,9 @@ function renderBlocks() {
         });
 
         blocksContainer.appendChild(wrapper);
+        const divider = document.createElement('div');
+        divider.className = 'file-divider';
+        blocksContainer.appendChild(divider);
     });
 }
 

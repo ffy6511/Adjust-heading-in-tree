@@ -24,26 +24,19 @@ h1 {
   border: 1px solid var(--vscode-widget-border);
 }
 .color-btn {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
   border: 1px solid var(--vscode-input-border);
   background: var(--tag-color, var(--vscode-input-background));
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
 }
 .color-btn:hover {
   box-shadow: 0 0 0 2px var(--vscode-focusBorder);
-}
-.color-chip {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: var(--tag-color, var(--vscode-input-background));
-  border: 1px solid var(--vscode-contrastBorder, rgba(0, 0, 0, 0.2));
 }
 .tag-icon {
   font-size: 20px;

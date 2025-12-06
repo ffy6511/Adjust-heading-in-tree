@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.4] - 2025-12-06
+
+### Feat
+
+- Add the function of partially deleting blocks, recursively deleting all contents within the selected range;
+- Add a color system to tags, support custom colors and ICONS, create special tags, and improve readability;
+- Optimize the display logic of tag view, select different display logics according to different modes, and increase the information density
+
 ## [0.3.3] - 2025-12-03
 
 ### Feat
