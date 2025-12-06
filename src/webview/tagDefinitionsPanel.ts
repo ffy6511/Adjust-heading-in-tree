@@ -7,6 +7,7 @@ export class TagDefinitionsPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
   private readonly _tagService: TagIndexService;
+  private readonly _defaultColor = "#808080";
   private _disposables: vscode.Disposable[] = [];
 
   private constructor(
@@ -130,6 +131,7 @@ export class TagDefinitionsPanel {
     return defs.map((def) => ({
       ...def,
       pinned: !!def.pinned,
+      color: def.color ?? this._defaultColor,
     }));
   }
 
@@ -159,7 +161,11 @@ export class TagDefinitionsPanel {
     }
 
     let pinnedCount = this._countPinned(userDefs);
-    const normalizedDef: TagDefinition = { ...def, pinned: !!def.pinned };
+    const normalizedDef: TagDefinition = {
+      ...def,
+      pinned: !!def.pinned,
+      color: def.color ?? this._defaultColor,
+    };
 
     const existingIdx = userDefs.findIndex((d) => d.name === def.name);
     const willPin =
@@ -266,7 +272,7 @@ export class TagDefinitionsPanel {
       const newDef: TagDefinition = {
         name: name.trim(),
         icon: "tag",
-        color: "charts.blue",
+        color: this._defaultColor,
       };
       await this._saveDefinition(newDef);
     }
@@ -540,6 +546,21 @@ export class TagDefinitionsPanel {
         </div>
         <input type="text" class="icon-picker-search" id="iconSearch" placeholder="Search icons...">
         <div class="icon-grid" id="iconGrid"></div>
+    </div>
+    <div id="colorPicker" class="color-picker hidden">
+        <div class="color-picker-header">
+            <span>Select Color</span>
+            <button class="btn btn-secondary" id="closeColorPicker">
+                <span class="codicon codicon-close"></span>
+            </button>
+        </div>
+        <div class="color-grid" id="colorGrid"></div>
+        <div class="color-picker-actions">
+            <button class="btn btn-secondary" id="addCustomColor">
+                <span class="codicon codicon-add"></span> Add Custom Color
+            </button>
+            <input type="color" id="customColorInput" class="hidden-input" aria-label="Custom color picker" />
+        </div>
     </div>
 
     <script>

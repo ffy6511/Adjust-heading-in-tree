@@ -3,8 +3,25 @@
 let definitions = [];
 let allIcons = [];
 let editingTag = null;
+let activePicker = null; // 'icon' | 'color' | null
 let iconPickerCallback = null;
 let searchValue = "";
+const presetColors = [
+    "#e53935",
+    "#fb8c00",
+    "#fbc02d",
+    "#43a047",
+    "#00acc1",
+    "#1e88e5",
+    "#8e44ad",
+    "#d81b60",
+    "#8d6e63",
+    "#95a5a6",
+    "#34495e",
+    "#f06292"
+];
+let customColors = [];
+const defaultColor = "#808080";
 
 // 请求初始数据
 vscode.postMessage({ command: 'getDefinitions' });
@@ -36,6 +53,9 @@ function renderTags() {
             <div class="tag-icon" data-index="${index}" title="Click to change icon">
                 <span class="codicon codicon-${def.icon || 'tag'}"></span>
             </div>
+            <button class="color-btn" data-index="${index}" title="Choose color" style="--tag-color:${normalizeColor(def.color)}">
+                <span class="color-chip"></span>
+            </button>
             <div class="tag-info">
                 <div class="tag-name">
                     <input type="text" value="${def.name}" data-index="${index}" data-original="${def.name}">
@@ -73,18 +93,18 @@ function renderTags() {
     document.querySelectorAll('.delete-btn').forEach(el => {
         el.addEventListener('click', () => deleteTag(parseInt(el.dataset.index)));
     });
+    document.querySelectorAll('.color-btn').forEach(el => {
+        el.addEventListener('click', () => openColorPicker(parseInt(el.dataset.index)));
+    });
 }
 
 function openIconPicker(index) {
     editingTag = index;
+    activePicker = 'icon';
     const picker = document.getElementById('iconPicker');
-    const overlay = document.getElementById('overlay');
-    const grid = document.getElementById('iconGrid');
-
     renderIconGrid(allIcons);
-
     picker.classList.remove('hidden');
-    overlay.classList.remove('hidden');
+    document.getElementById('overlay').classList.remove('hidden');
     document.getElementById('iconSearch').value = '';
     document.getElementById('iconSearch').focus();
 }
@@ -115,12 +135,16 @@ function selectIcon(icon) {
 
 function closeIconPicker() {
     document.getElementById('iconPicker').classList.add('hidden');
-    document.getElementById('overlay').classList.add('hidden');
+    hideOverlayIfIdle();
     editingTag = null;
+    activePicker = null;
 }
 
 document.getElementById('closeIconPicker').addEventListener('click', closeIconPicker);
-document.getElementById('overlay').addEventListener('click', closeIconPicker);
+document.getElementById('overlay').addEventListener('click', () => {
+    closeIconPicker();
+    closeColorPicker();
+});
 document.getElementById('iconSearch').addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase();
     const filtered = allIcons.filter(i => i.includes(query));
@@ -190,3 +214,73 @@ document.getElementById('addBtn').addEventListener('click', () => {
     // 使用扩展端输入框
     vscode.postMessage({ command: 'addNewTag' });
 });
+
+function normalizeColor(color) {
+    if (!color) {
+        return defaultColor;
+    }
+    if (color.includes('.')) {
+        return `var(--vscode-${color.replace(/\./g, '-')})`;
+    }
+    return color;
+}
+
+function openColorPicker(index) {
+    editingTag = index;
+    activePicker = 'color';
+    renderColorGrid([...presetColors, ...customColors]);
+    document.getElementById('colorPicker').classList.remove('hidden');
+    document.getElementById('overlay').classList.remove('hidden');
+}
+
+function renderColorGrid(colors) {
+    const grid = document.getElementById('colorGrid');
+    grid.innerHTML = '';
+    colors.forEach((color) => {
+        const btn = document.createElement('button');
+        btn.className = 'color-option';
+        btn.style.setProperty('--color-swatch', normalizeColor(color));
+        btn.title = color;
+        btn.addEventListener('click', () => selectColor(color));
+        grid.appendChild(btn);
+    });
+}
+
+function selectColor(color) {
+    if (editingTag !== null) {
+        definitions[editingTag].color = color;
+        renderTags();
+        const def = definitions[editingTag];
+        vscode.postMessage({ command: 'saveDefinition', definition: def });
+    }
+    closeColorPicker();
+}
+
+function closeColorPicker() {
+    document.getElementById('colorPicker').classList.add('hidden');
+    hideOverlayIfIdle();
+    editingTag = null;
+    activePicker = null;
+}
+
+document.getElementById('closeColorPicker').addEventListener('click', closeColorPicker);
+document.getElementById('addCustomColor').addEventListener('click', () => {
+    const input = document.getElementById('customColorInput');
+    input.click();
+});
+
+document.getElementById('customColorInput').addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val && !customColors.includes(val)) {
+        customColors.push(val);
+    }
+    renderColorGrid([...presetColors, ...customColors]);
+    selectColor(val);
+});
+
+function hideOverlayIfIdle() {
+    if (document.getElementById('iconPicker').classList.contains('hidden') &&
+        document.getElementById('colorPicker').classList.contains('hidden')) {
+        document.getElementById('overlay').classList.add('hidden');
+    }
+}

@@ -17,10 +17,6 @@ const blocksContainer = document.getElementById('blocks');
 const searchInput = document.getElementById('search');
 const selectBtn = document.getElementById('select-btn');
 const scopeBtn = document.getElementById('scope-btn');
-const breadcrumbTooltip = document.createElement('div');
-breadcrumbTooltip.className = 'breadcrumb-tooltip';
-document.body.appendChild(breadcrumbTooltip);
-let breadcrumbTimer = null;
 
 // 消息处理
 window.addEventListener('message', event => {
@@ -70,8 +66,6 @@ scopeBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'toggleScope' });
 });
 
-blocksContainer.addEventListener('scroll', hideBreadcrumbTooltip);
-
 searchInput.addEventListener('input', (e) => {
     state.searchQuery = e.target.value.toLowerCase();
     renderTags();
@@ -110,21 +104,14 @@ function updateSelectBtn() {
     }
 }
 
-function showBreadcrumbTooltip(target, breadcrumb) {
-    if (!breadcrumb || breadcrumb.length === 0) {
-        return;
+function resolveColorToken(color) {
+    if (!color) {
+        return "var(--vscode-descriptionForeground)";
     }
-    const text = breadcrumb.join(' > ');
-    breadcrumbTooltip.textContent = text;
-    const rect = target.getBoundingClientRect();
-    breadcrumbTooltip.style.left = `${rect.left + rect.width / 2}px`;
-    const top = Math.max(8, rect.top - 8);
-    breadcrumbTooltip.style.top = `${top}px`;
-    breadcrumbTooltip.classList.add('visible');
-}
-
-function hideBreadcrumbTooltip() {
-    breadcrumbTooltip.classList.remove('visible');
+    if (color.includes(".")) {
+        return `var(--vscode-${color.replace(/\./g, "-")})`;
+    }
+    return color;
 }
 
 function getTagStyle(tagName) {
@@ -156,6 +143,20 @@ function getTagNamesForBlock(block) {
     }
 
     return Array.from(tagSet);
+}
+
+function getColorForBlock(block) {
+    // 优先使用当前选中的标签颜色
+    if (state.selectedTags.size > 0) {
+        const selected = Array.from(state.selectedTags)[0];
+        const def = getTagStyle(selected);
+        return resolveColorToken(def?.color);
+    }
+
+    const tags = getTagNamesForBlock(block);
+    const firstTag = tags[0];
+    const def = firstTag ? getTagStyle(firstTag) : undefined;
+    return resolveColorToken(def?.color);
 }
 
 function renderTags() {
@@ -201,11 +202,12 @@ function renderTags() {
         const def = getTagStyle(tag);
         let iconHtml = '';
         if (def && def.icon) {
-            iconHtml = '<span class="codicon codicon-' + def.icon + '"></span> ';
+            iconHtml = '<span class="codicon codicon-' + def.icon + '" style="color:' + resolveColorToken(def.color) + '"></span> ';
         }
 
         el.innerHTML = iconHtml + tag;
         el.title = tag;
+        el.style.color = resolveColorToken(def?.color);
 
         el.addEventListener('click', () => {
             if (state.isMultiSelect) {
@@ -232,8 +234,6 @@ function renderTags() {
 }
 
 function renderBlocks() {
-    clearTimeout(breadcrumbTimer);
-    hideBreadcrumbTooltip();
     blocksContainer.innerHTML = '';
 
     // 根据选中情况决定要展示的 block 列表
@@ -277,89 +277,114 @@ function renderBlocks() {
         return;
     }
 
-candidates.forEach(block => {
-    const el = document.createElement('div');
-    el.className = 'block-item';
-
-    const header = document.createElement('div');
-    header.className = 'block-header';
-    header.innerHTML = '<span>' + block.fileName + ':' + (block.line + 1) + '</span>';
-
-    const content = document.createElement('div');
-    content.className = 'block-content';
-    content.textContent = block.text; // Text content
-
-    el.appendChild(header);
-    el.appendChild(content);
-
-    // 删除按钮：无论是否选择标签都可使用
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.innerHTML = '<span class="codicon codicon-close"></span>';
-    deleteBtn.title = 'Remove tag reference(s) from this block';
-
-    // Handle delete button clicks
-    let confirmTimeout = null;
-    let originalIconHTML = deleteBtn.innerHTML;
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent triggering the main click handler
-
-        if (deleteBtn.classList.contains('confirm')) {
-            // Second click - confirmed, delete tag references
-            clearTimeout(confirmTimeout);
-            const tagNames = getTagNamesForBlock(block);
-            if (tagNames.length === 0) {
-                return;
+    // 分组（全局模式下按文件分组）
+    const groups = [];
+    if (state.isGlobal) {
+        const map = new Map();
+        for (const block of candidates) {
+            const key = block.fsPath || block.fileName || block.uri;
+            if (!map.has(key)) {
+                map.set(key, {
+                    fileName: block.fileName || "Untitled",
+                    blocks: []
+                });
             }
-            vscode.postMessage({
-                type: 'removeTagReferences',
-                uri: block.uri,
-                line: block.line,
-                tagNames: tagNames
-            });
-        } else {
-            // First click - show confirmation
-            deleteBtn.classList.add('confirm');
-            deleteBtn.innerHTML = ''; // Clear the icon when showing text
-
-            // Auto-revert after 2 seconds if not clicked
-            confirmTimeout = setTimeout(() => {
-                deleteBtn.classList.remove('confirm');
-                deleteBtn.innerHTML = originalIconHTML;
-            }, 2000);
+            map.get(key).blocks.push(block);
         }
-    });
-
-    el.appendChild(deleteBtn);
-
-    const clearBreadcrumb = () => {
-        clearTimeout(breadcrumbTimer);
-        hideBreadcrumbTooltip();
-    };
-
-    header.addEventListener('mouseenter', () => {
-        clearTimeout(breadcrumbTimer);
-        if (block.breadcrumb && block.breadcrumb.length > 0) {
-            breadcrumbTimer = setTimeout(() => {
-                showBreadcrumbTooltip(header, block.breadcrumb);
-            }, 750);
+        for (const value of map.values()) {
+            value.blocks.sort((a, b) => a.line - b.line);
+            groups.push(value);
         }
-    });
-
-    header.addEventListener('mouseleave', clearBreadcrumb);
-    el.addEventListener('mouseleave', clearBreadcrumb);
-
-    el.addEventListener('click', () => {
-        hideBreadcrumbTooltip();
-        vscode.postMessage({
-            type: 'openLocation',
-            uri: block.uri,
-            line: block.line
+        groups.sort((a, b) => a.fileName.localeCompare(b.fileName));
+    } else {
+        groups.push({
+            fileName: null,
+            blocks: candidates.sort((a, b) => a.line - b.line)
         });
-    });
+    }
 
-    blocksContainer.appendChild(el);
-});
+    groups.forEach((group, groupIndex) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'file-group';
+
+        if (state.isGlobal && group.fileName) {
+            const title = document.createElement('div');
+            title.className = 'file-title';
+            const displayName = group.fileName.replace(/\.[^.]+$/, '');
+            title.textContent = displayName;
+            wrapper.appendChild(title);
+        }
+
+        group.blocks.forEach(block => {
+            const el = document.createElement('div');
+            el.className = 'block-item';
+            el.style.borderLeft = `2px solid ${getColorForBlock(block)}`;
+
+            const content = document.createElement('div');
+            content.className = 'block-content';
+            content.textContent = block.text;
+            el.appendChild(content);
+
+            if (block.breadcrumb && block.breadcrumb.length > 0) {
+                const breadcrumb = document.createElement('div');
+                breadcrumb.className = 'block-breadcrumb';
+                breadcrumb.textContent = block.breadcrumb.join(' > ');
+                el.appendChild(breadcrumb);
+            }
+
+            // 删除按钮：无论是否选择标签都可使用
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.innerHTML = '<span class="codicon codicon-close"></span>';
+            deleteBtn.title = 'Remove tag reference(s) from this block';
+
+            // Handle delete button clicks
+            let confirmTimeout = null;
+            const originalIconHTML = deleteBtn.innerHTML;
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering the main click handler
+
+                if (deleteBtn.classList.contains('confirm')) {
+                    // Second click - confirmed, delete tag references
+                    clearTimeout(confirmTimeout);
+                    const tagNames = getTagNamesForBlock(block);
+                    if (tagNames.length === 0) {
+                        return;
+                    }
+                    vscode.postMessage({
+                        type: 'removeTagReferences',
+                        uri: block.uri,
+                        line: block.line,
+                        tagNames: tagNames
+                    });
+                } else {
+                    // First click - show confirmation
+                    deleteBtn.classList.add('confirm');
+                    deleteBtn.innerHTML = ''; // Clear the icon when showing text
+
+                    // Auto-revert after 2 seconds if not clicked
+                    confirmTimeout = setTimeout(() => {
+                        deleteBtn.classList.remove('confirm');
+                        deleteBtn.innerHTML = originalIconHTML;
+                    }, 2000);
+                }
+            });
+
+            el.appendChild(deleteBtn);
+
+            el.addEventListener('click', () => {
+                vscode.postMessage({
+                    type: 'openLocation',
+                    uri: block.uri,
+                    line: block.line
+                });
+            });
+
+            wrapper.appendChild(el);
+        });
+
+        blocksContainer.appendChild(wrapper);
+    });
 }
 
 // Initial request (optional if backend pushes on connect)

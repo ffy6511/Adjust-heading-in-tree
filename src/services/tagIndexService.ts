@@ -20,6 +20,7 @@ export class TagIndexService {
   private headingBreadcrumbs: Map<string, Map<number, string[]>> = new Map();
   private _onDidUpdateTags = new vscode.EventEmitter<void>();
   public readonly onDidUpdateTags = this._onDidUpdateTags.event;
+  private readonly defaultTagColor = "#808080";
 
   private constructor() {
     this.initialize();
@@ -168,6 +169,7 @@ export class TagIndexService {
     return defs.map((def) => ({
       ...def,
       pinned: !!def.pinned,
+      color: def.color ?? this.defaultTagColor,
     }));
   }
 
@@ -224,7 +226,7 @@ export class TagIndexService {
         newDefs.push({
           name: tag,
           icon: "tag",
-          color: "charts.blue",
+          color: this.defaultTagColor,
           pinned: shouldPin,
         });
       }

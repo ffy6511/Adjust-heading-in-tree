@@ -23,6 +23,28 @@ h1 {
   padding: 4px;
   border: 1px solid var(--vscode-widget-border);
 }
+.color-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--tag-color, var(--vscode-input-background));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.color-btn:hover {
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+}
+.color-chip {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--tag-color, var(--vscode-input-background));
+  border: 1px solid var(--vscode-contrastBorder, rgba(0, 0, 0, 0.2));
+}
 .tag-icon {
   font-size: 20px;
   width: 32px;
@@ -177,6 +199,56 @@ h1 {
 }
 .icon-option:hover {
   background: var(--vscode-list-hoverBackground);
+}
+.color-picker {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 8px;
+  padding: 16px;
+  width: clamp(280px, 50vw, 520px);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+.color-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 8px;
+}
+.color-option {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--color-swatch);
+  cursor: pointer;
+}
+.color-option:hover {
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+}
+.color-picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hidden-input {
+  width: 0;
+  height: 0;
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
 }
 .overlay {
   position: fixed;

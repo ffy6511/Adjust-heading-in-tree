@@ -4,7 +4,7 @@
   <img src="./resources/icons/logo.png" alt="logo" width="100">
 </div>
 
-Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩展，提供导航树、拖拽重排与批量层级调整，帮助你像操作“块”一样管理整段内容。
+Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩展，提供导航树、拖拽重排、批量层级调整与块级标签机制，帮助你像操作“块”一样管理整段内容。
 
 ### 功能特性
 
@@ -39,7 +39,7 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
 | 向下移动（同级）  | `Ctrl + Shift + ↓` | `Cmd + Shift + ↓` |
 | 显示 / 隐藏导航栏 | `Ctrl + Shift + T` | `Cmd + Shift + T` |
 
-> 所有快捷键都可在 VS Code `Preferences → Keyboard Shortcuts` 中自定义。“Adjust Heading Tree Help” 按钮可快速打开对应设置。
+> 所有快捷键都可在 VS Code `Preferences → Keyboard Shortcuts` 中自定义。“TOC Help” 按钮可快速打开对应设置。
 
 ### 许可
 
@@ -83,7 +83,7 @@ You can now customize the hover toolbar that appears when hovering over items. D
 | Move down (same level) | `Ctrl + Shift + ↓` | `Cmd + Shift + ↓` |
 | Toggle tree visibility | `Ctrl + Shift + T` | `Cmd + Shift + T` |
 
-> All shortcuts can be customized via VS Code `Preferences → Keyboard Shortcuts`. The "Adjust Heading Tree Help" command opens the relevant settings instantly.
+> All shortcuts can be customized via VS Code `Preferences → Keyboard Shortcuts`. The "TOC Help" command opens the relevant settings instantly.
 
 ### License
 
