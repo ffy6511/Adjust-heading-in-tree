@@ -4,6 +4,7 @@ import { registerShiftCommands } from "./commands/shiftHeadings";
 import { registerToggleCommand } from "./commands/toggleView";
 import { registerTreeLevelCommand } from "./commands/treeLevelControl";
 import { registerReorderCommands } from "./commands/reorderHeadings";
+import { registerDeleteHeadingCommand } from "./commands/deleteHeading";
 import {
   registerHelpCommand,
   registerTagViewHelpCommand,
@@ -48,6 +49,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
+  context.subscriptions.push(
+    registerDeleteHeadingCommand(headingProvider, treeView)
+  );
 
   // Register Edit Tags Command
   context.subscriptions.push(
@@ -99,6 +103,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const buttons = configuration.get<string[]>("view.hoverToolbar", [
       "editTags",
       "filterToSubtree",
+      "deleteHeading",
     ]);
 
     // We support up to 6 slots for now
@@ -129,7 +134,7 @@ export function activate(context: vscode.ExtensionContext): void {
           "moveHeadingUp",
           "moveHeadingDown",
           "filterToSubtree",
-          "openExportMenu",
+          "deleteHeading",
         ]);
 
         for (let i = 0; i < 6; i++) {

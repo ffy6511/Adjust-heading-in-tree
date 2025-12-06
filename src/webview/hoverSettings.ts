@@ -154,6 +154,12 @@ export class HoverSettingsPanel {
         label: "Edit Tags",
         desc: "Add or remove tags for this heading",
       },
+      {
+        id: "deleteHeading",
+        icon: "trash",
+        label: "Delete Block",
+        desc: "Remove this heading block from the document",
+      },
     ];
 
     const availableItemsJSON = JSON.stringify(items);

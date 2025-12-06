@@ -137,6 +137,27 @@ function render() {
     renderBlocks();
 }
 
+// 计算某个区块关联的标签集合：有选中标签时直接使用选中的，否则聚合所有包含该区块的标签
+function getTagNamesForBlock(block) {
+    if (state.selectedTags.size > 0) {
+        return Array.from(state.selectedTags);
+    }
+
+    const tagSet = new Set();
+    Object.entries(state.data).forEach(([tagName, blocks]) => {
+        const list = blocks || [];
+        if (list.some(b => b.uri === block.uri && b.line === block.line)) {
+            tagSet.add(tagName);
+        }
+    });
+
+    if (tagSet.size === 0 && block.tagName) {
+        tagSet.add(block.tagName);
+    }
+
+    return Array.from(tagSet);
+}
+
 function renderTags() {
     tagsContainer.innerHTML = '';
 
@@ -215,28 +236,44 @@ function renderBlocks() {
     hideBreadcrumbTooltip();
     blocksContainer.innerHTML = '';
 
+    // 根据选中情况决定要展示的 block 列表
+    let candidates = [];
+
     if (state.selectedTags.size === 0) {
-        blocksContainer.innerHTML = '<div class="empty-state">Select a tag to see blocks</div>';
-        return;
-    }
+        // 没有选中标签时，展示当前作用域内的所有 block（需要去重）
+        const seen = new Set();
+        for (const tag of Object.keys(state.data)) {
+            const blocks = state.data[tag] || [];
+            for (const block of blocks) {
+                const key = `${block.uri}:${block.line}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    candidates.push(block);
+                }
+            }
+        }
+    } else {
+        // Find blocks that have ALL selected tags
+        const selectedArray = Array.from(state.selectedTags);
 
-    // Find blocks that have ALL selected tags
-    const selectedArray = Array.from(state.selectedTags);
+        // Start with blocks from the first tag
+        // 注意：这里的 state.data[tag] 是一组 blocks
+        candidates = state.data[selectedArray[0]] || [];
 
-    // Start with blocks from the first tag
-    // 注意：这里的 state.data[tag] 是一组 blocks
-    let candidates = state.data[selectedArray[0]] || [];
-
-    // Intersect with subsequent tags
-    for (let i = 1; i < selectedArray.length; i++) {
-        const nextTagBlocks = state.data[selectedArray[i]] || [];
-        // 我们通过 uri 和 line 唯一标识 block (或者差不多唯一)
-        const nextSet = new Set(nextTagBlocks.map(b => b.uri + ':' + b.line));
-        candidates = candidates.filter(b => nextSet.has(b.uri + ':' + b.line));
+        // Intersect with subsequent tags
+        for (let i = 1; i < selectedArray.length; i++) {
+            const nextTagBlocks = state.data[selectedArray[i]] || [];
+            // 我们通过 uri 和 line 唯一标识 block (或者差不多唯一)
+            const nextSet = new Set(nextTagBlocks.map(b => b.uri + ':' + b.line));
+            candidates = candidates.filter(b => nextSet.has(b.uri + ':' + b.line));
+        }
     }
 
     if (candidates.length === 0) {
-        blocksContainer.innerHTML = '<div class="empty-state">No blocks found with all selected tags</div>';
+        const emptyText = state.selectedTags.size === 0
+            ? '当前范围内没有可显示的区块'
+            : 'No blocks found with all selected tags';
+        blocksContainer.innerHTML = `<div class="empty-state">${emptyText}</div>`;
         return;
     }
 
@@ -252,11 +289,14 @@ candidates.forEach(block => {
     content.className = 'block-content';
     content.textContent = block.text; // Text content
 
-    // Create delete button
+    el.appendChild(header);
+    el.appendChild(content);
+
+    // 删除按钮：无论是否选择标签都可使用
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '<span class="codicon codicon-close"></span>';
-    deleteBtn.title = 'Click to delete this tag reference';
+    deleteBtn.title = 'Remove tag reference(s) from this block';
 
     // Handle delete button clicks
     let confirmTimeout = null;
@@ -265,13 +305,17 @@ candidates.forEach(block => {
         e.stopPropagation(); // Prevent triggering the main click handler
 
         if (deleteBtn.classList.contains('confirm')) {
-            // Second click - confirmed, delete all selected tag references from this block
+            // Second click - confirmed, delete tag references
             clearTimeout(confirmTimeout);
+            const tagNames = getTagNamesForBlock(block);
+            if (tagNames.length === 0) {
+                return;
+            }
             vscode.postMessage({
                 type: 'removeTagReferences',
                 uri: block.uri,
                 line: block.line,
-                tagNames: Array.from(state.selectedTags) // Pass all currently selected tags
+                tagNames: tagNames
             });
         } else {
             // First click - show confirmation
@@ -286,23 +330,24 @@ candidates.forEach(block => {
         }
     });
 
-    el.appendChild(header);
-    el.appendChild(content);
     el.appendChild(deleteBtn);
 
-    el.addEventListener('mouseenter', () => {
+    const clearBreadcrumb = () => {
+        clearTimeout(breadcrumbTimer);
+        hideBreadcrumbTooltip();
+    };
+
+    header.addEventListener('mouseenter', () => {
         clearTimeout(breadcrumbTimer);
         if (block.breadcrumb && block.breadcrumb.length > 0) {
             breadcrumbTimer = setTimeout(() => {
-                showBreadcrumbTooltip(el, block.breadcrumb);
+                showBreadcrumbTooltip(header, block.breadcrumb);
             }, 750);
         }
     });
 
-    el.addEventListener('mouseleave', () => {
-        clearTimeout(breadcrumbTimer);
-        hideBreadcrumbTooltip();
-    });
+    header.addEventListener('mouseleave', clearBreadcrumb);
+    el.addEventListener('mouseleave', clearBreadcrumb);
 
     el.addEventListener('click', () => {
         hideBreadcrumbTooltip();
