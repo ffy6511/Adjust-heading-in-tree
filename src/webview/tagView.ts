@@ -146,7 +146,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       for (const tag of tags) {
         const blocks = this._tagService.getBlocksByTag(tag);
         payload[tag] = blocks.map((b) => ({
-          text: b.text,
+          text: b.displayText ?? b.text,
           line: b.line,
           level: b.level,
           uri: b.uri.toString(),
@@ -173,7 +173,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         for (const tag of tags) {
           const blocks = this._tagService.getBlocksForFile(activeUri, tag);
           payload[tag] = blocks.map((b) => ({
-            text: b.text,
+            text: b.displayText ?? b.text,
             line: b.line,
             level: b.level,
             uri: b.uri.toString(),

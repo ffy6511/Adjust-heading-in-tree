@@ -11,6 +11,7 @@ export interface TagDefinition {
 export interface TaggedHeading extends HeadingMatch {
   uri: vscode.Uri;
   id: string; // Unique ID for keying (fsPath + line)
+  rawText?: string;
   breadcrumb?: string[];
 }
 
@@ -110,6 +111,7 @@ export class TagIndexService {
             uri: document.uri,
             id: `${document.uri.fsPath}:${match.line}`,
             breadcrumb: breadcrumbs.get(match.line),
+            rawText: match.text,
           };
 
           nodes.push(node);
@@ -154,7 +156,7 @@ export class TagIndexService {
       stack.push(match);
       breadcrumbs.set(
         match.line,
-        stack.map((item) => item.text)
+        stack.map((item) => item.displayText)
       );
     }
 

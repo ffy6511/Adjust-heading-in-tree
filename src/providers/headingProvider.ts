@@ -373,7 +373,7 @@ function buildTree(matches: HeadingMatch[]): HeadingNode[] {
   matches.forEach((match, index) => {
     const node: HeadingNode = {
       id: `${match.line}-${index}`,
-      label: match.text,
+      label: match.displayText,
       level: match.level,
       kind: match.kind,
       range: match.range,
