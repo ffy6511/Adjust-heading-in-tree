@@ -90,26 +90,55 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  opacity: 0.75;
+  margin: 2px 0px;
+  padding: 4px 8px;
   border-radius: 12px;
-  background: hsl(from var(--vscode-button-secondaryBackground) h s l / 0.2);
   cursor: pointer;
-  border: 1px dashed currentColor;
+  color: var(--vscode-editor-foreground);
+  border: 1px dashed
+    color-mix(
+      in srgb,
+      var(--tag-color, var(--vscode-descriptionForeground)) 40%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--tag-color, var(--vscode-descriptionForeground)) 5%,
+    transparent
+  );
   font-size: 0.9em;
   font-weight: 550;
-  opacity: 0.75;
-  transition: opacity 0.15s, border-color 0.15s, transform 0.1s, border 0.15s;
+  transition: opacity 0.15s, border-color 0.15s, transform 0.1s, border 0.15s,
+    background 0.15s;
 }
 .tag-chip:hover {
   opacity: 0.9;
   transform: scale(1.01);
-  background: hsl(from var(--vscode-button-secondaryBackground) h s l / 0.6);
+  background: color-mix(
+    in srgb,
+    var(--tag-color, var(--vscode-descriptionForeground)) 20%,
+    transparent
+  );
 }
 
 .tag-chip.selected {
   opacity: 1;
-  border: 1px solid color-mix(in srgb, currentColor 60%, transparent);
-  background: hsl(from var(--vscode-button-secondaryBackground) h s l / 0.8);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--tag-color, var(--vscode-descriptionForeground)) 10%,
+      transparent
+    );
+  color: var(--vscode-editor-foreground);
+  background: color-mix(
+    in srgb,
+    var(--tag-color, var(--vscode-descriptionForeground)) 30%,
+    transparent
+  );
+}
+.tag-chip .tag-color-icon {
+  color: var(--tag-color, var(--vscode-descriptionForeground));
 }
 .block-list {
   display: flex;

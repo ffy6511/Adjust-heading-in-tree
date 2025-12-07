@@ -202,12 +202,13 @@ function renderTags() {
         const def = getTagStyle(tag);
         let iconHtml = '';
         if (def && def.icon) {
-            iconHtml = '<span class="codicon codicon-' + def.icon + '" style="color:' + resolveColorToken(def.color) + '"></span> ';
+            iconHtml = '<span class="codicon codicon-' + def.icon + ' tag-color-icon"></span> ';
         }
 
         el.innerHTML = iconHtml + tag;
         el.title = tag;
-        el.style.color = resolveColorToken(def?.color);
+        el.style.setProperty('--tag-color', resolveColorToken(def?.color));
+        el.style.color = 'var(--vscode-foreground)';
 
         el.addEventListener('click', () => {
             if (state.isMultiSelect) {
