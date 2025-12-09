@@ -249,7 +249,7 @@ async function openExportSettings(): Promise<void> {
   if (selection.action === "settings") {
     await vscode.commands.executeCommand(
       "workbench.action.openSettings",
-      EXPORT_CONFIG_SECTION,
+      "adjustHeadingInTree",
     );
     return;
   }

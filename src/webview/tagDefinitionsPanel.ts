@@ -118,9 +118,10 @@ export class TagDefinitionsPanel {
 
   private async _sendDefinitions() {
     const { defs, unpinned } = await this._enforcePinLimit();
+    const ordered = this._sortDefinitions(defs);
     await this._panel.webview.postMessage({
       type: "definitions",
-      data: defs,
+      data: ordered,
       icons: COMMON_ICONS,
       maxPinnedDisplay: this._getMaxPinnedDisplay(),
     });
@@ -218,7 +219,7 @@ export class TagDefinitionsPanel {
     const defs = this._tagService.getTagsFromSettings();
     const maxPinned = this._getMaxPinnedDisplay();
     const unpinned = await this._applyPinLimit(defs, maxPinned, config);
-    return { defs, unpinned };
+    return { defs: this._sortDefinitions(defs), unpinned };
   }
 
   /**
@@ -240,14 +241,31 @@ export class TagDefinitionsPanel {
           unpinned.push(def.name);
         }
       }
+      const ordered = this._sortDefinitions(defs);
       await config.update(
         "tags.definitions",
-        defs,
+        ordered,
         vscode.ConfigurationTarget.Global
       );
     }
 
     return unpinned;
+  }
+
+  /**
+   * 将已 Pin 的标签提前展示，其他标签保持原有顺序
+   */
+  private _sortDefinitions(defs: TagDefinition[]): TagDefinition[] {
+    const pinned: TagDefinition[] = [];
+    const others: TagDefinition[] = [];
+    for (const def of defs) {
+      if (def.pinned) {
+        pinned.push(def);
+      } else {
+        others.push(def);
+      }
+    }
+    return [...pinned, ...others];
   }
 
   private async _saveDefinition(def: TagDefinition, oldName?: string) {
@@ -314,16 +332,17 @@ export class TagDefinitionsPanel {
       pinnedCount = Math.max(0, pinnedCount - 1);
     }
 
-    // 更新或添加到用户配置
+    // 更新或添加到用户配置，并保证 Pin 标签排在前面
     if (existingIdx >= 0) {
       userDefs[existingIdx] = normalizedDef;
     } else {
       userDefs.push(normalizedDef);
     }
 
+    const orderedDefs = this._sortDefinitions(userDefs);
     await config.update(
       "tags.definitions",
-      userDefs,
+      orderedDefs,
       vscode.ConfigurationTarget.Global
     );
     this._tagService.scanWorkspace();

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.5] - 2025-12-09
+
+### Feat
+
+- Allow custom 'Max pinned' values to set the maximum number of tags displayed;
+- Optimize the display logic of the tag view to allow non-pinned tags to be displayed when there is display space margin
+
+### Style
+
+- Optimize the display style of tag chip in tag view
+
+<div align="center">
+  <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20251209200554185.png?imageSlim" alt="cover" width="80%">
+</div>
+
 ## [0.3.4] - 2025-12-06
 
 ### Feat
@@ -19,6 +34,9 @@
 ### style
 
 - Optimize the item style of the panel;
+<div align="center">
+  <img src="./resources/imgs/tag_view.png" alt="cover" width="80%">
+</div>
 
 ## [0.3.2] - 2025-11-29
 
