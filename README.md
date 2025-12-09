@@ -6,30 +6,37 @@
 
 Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩展，提供导航树、拖拽重排、批量层级调整与块级标签机制，帮助你像操作“块”一样管理整段内容。
 
-### 功能特性
+## ✨️ 功能特性
 
-- **标题结构导航**：在侧边栏展示 Markdown `#` 与 Typst `=` 标题形成的层级树，支持展开、折叠与点击定位；
-- **拖拽重排**：在树中拖动标题即可连同子树移动到新位置，保持文档结构一致；
-- **同级快速排序**：通过内联按钮或快捷键在同一父级内向上/向下移动标题块；
-- **批量层级调整**：整体提升或降低选中标题及其子树的层级；
-- **范围筛选显示**：筛选显示特定标题及其子树，或筛选到指定层级的祖先标题，快速聚焦文档区域；
-- **层级显示控制**：使用工具栏按钮设置导航树的最大展开层级；
-- **导出子树**：单独将选中的标题子树导出为 PDF 或 PNG 图片，方便分享或进一步处理(需要安装 Tinymist)；
-
-<div align="center">s
-  <img src="./resources/imgs/cover.png" alt="cover" width="90%">
-</div>
-
-### 快捷键与自定义面板
-
-#### 自定义 hover 栏
+- **块级标签**：使用`Tag`来组织管理您的文件! 为标题块添加标签，支持全局/当前文件切换、搜索、多选, 并可在 Tag 管理面板中自定义颜色、图标等；
 
 <div align="center">
-  <img src="./resources/imgs/hover-setting.png" alt="cover" width="90%">
+  <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20251209200554185.png?imageSlim" alt="cover" width="80%">
+</div>
+
+- **标题导航与筛选**：侧边栏展示层级树，支持展开/折叠/点击定位，一键控制最大展开层级. 想要深入钻研某一区域?可以选中区域单独展示；
+- **拖拽与同级重排**：拖动标题即可连同子树迁移位置，同级内可用内联按钮或快捷键快速上/下移，保持结构一致；
+- **批量层级调整**：一键整体提升或降低选中标题及其子树的层级；
+- **子树导出**：将选中的标题子树导出为 PDF 或 PNG（需 Tinymist），便于分享或后续处理。
+
+## 自定义操作
+
+### 个性化编辑您的 Tag 样式
+
+在 Panel 中自定义您的 tag 名称、icon、颜色以及...显示优先级!
+
+<div align="center">
+  <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20251209202614590.png?imageSlim" alt="cover" width="80%">
+</div>
+
+### 将您的常用操作固定到 hover 栏
+
+<div align="center">
+  <img src="./resources/imgs/hover-setting.png" alt="cover" width="80%">
 </div>
 现在您可以自定义hover到item上的Toolbar,通过拖拽来添加、删除和排序. 构建自己的工作区!
 
-#### 快捷键支持
+### 使用快捷键快捷操作
 
 | 操作              | Windows / Linux    | macOS             |
 | ----------------- | ------------------ | ----------------- |
@@ -39,41 +46,48 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
 | 向下移动（同级）  | `Ctrl + Shift + ↓` | `Cmd + Shift + ↓` |
 | 显示 / 隐藏导航栏 | `Ctrl + Shift + T` | `Cmd + Shift + T` |
 
-> 所有快捷键都可在 VS Code `Preferences → Keyboard Shortcuts` 中自定义。“TOC Help” 按钮可快速打开对应设置。
+> 可在 VS Code `Preferences → Keyboard Shortcuts` 中自定义。“TOC Help” 按钮可快速打开对应设置。
 
-### 许可
+## 许可
 
 MIT License
 
-## English Guide
+# English Guide
 
-Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. It provides navigation trees, drag-and-drop rearrangements, and batch hierarchy adjustments so you can manage entire sections like modular blocks.
+Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. It provides navigation trees, drag-and-drop rearrangements, batch hierarchy adjustments, and block-level tagging so you can manage entire sections like modular blocks.
 
-### Features
+## ✨️ Features
 
-- **Title structure navigation**: Display the heading hierarchy formed by Markdown `#` and Typst `=` in the sidebar, with expand, collapse, and click-to-jump support.
-- **Drag-and-drop reorder**: Move a heading and its subtree to a new location while preserving document structure.
-- **Peer-level quick sort**: Use inline buttons or shortcuts to move a heading block up or down within the same parent.
-- **Batch hierarchy shift**: Promote or demote selected headings together with their subtrees in one action.
-- **Scope filtering display**: Filter to show a specific heading and its subtree, or filter to ancestor headings at a specified level for quick document focus.
-- **Hierarchy depth control**: Set the maximum expanded level of the navigation tree via toolbar buttons.
-- **Subtree export**: Export a heading subtree as a PDF or PNG image for sharing or further processing(requires Tinymist).
+- **Block tags / Tag View**: Organize with tags; pin key tags, auto-fill the list when pins are fewer than the limit, toggle global/current-file scope, search, multi-select, and remove references. Customize colors/icons/pin limit in the Tag Definitions panel.
 
 <div align="center">
-  <img src="./resources/imgs/cover.png" alt="cover" width="90%">
+  <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20251209200554185.png?imageSlim" alt="cover" width="80%">
 </div>
 
-### Shortcuts and Customization
+- **Navigation & filtering**: Sidebar tree for Markdown `#` and Typst `=` with expand/collapse/jump, max-depth control, and quick filters to subtree or ancestor scopes.
+- **Drag and reorder**: Drag a heading to move its entire subtree; reorder siblings via inline buttons or shortcuts.
+- **Batch level shift**: Promote or demote selected headings and their subtrees together.
+- **Subtree export**: Export a heading subtree as PDF or PNG (Tinymist required) for sharing or further processing.
 
-#### Custom Hover Toolbar
+## Customize
+
+### Personalize your tag styles
+
+Use the panel to set tag names, icons, colors, and display priority.
 
 <div align="center">
-  <img src="./resources/imgs/hover-setting.png" alt="cover" width="90%">
+  <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20251209202614590.png?imageSlim" alt="cover" width="80%">
 </div>
 
-You can now customize the hover toolbar that appears when hovering over items. Drag to add, remove, and reorder items to build your perfect workspace!
+### Pin common actions to the hover bar
 
-#### Shortcuts
+<div align="center">
+  <img src="./resources/imgs/hover-setting.png" alt="cover" width="80%">
+</div>
+
+Customize the hover toolbar shown on items: drag to add, remove, and reorder buttons to build your workspace.
+
+### Shortcuts
 
 | Action                 | Windows / Linux    | macOS             |
 | ---------------------- | ------------------ | ----------------- |

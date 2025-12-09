@@ -34,9 +34,6 @@
 ### style
 
 - Optimize the item style of the panel;
-<div align="center">
-  <img src="./resources/imgs/tag_view.png" alt="cover" width="80%">
-</div>
 
 ## [0.3.2] - 2025-11-29
 
