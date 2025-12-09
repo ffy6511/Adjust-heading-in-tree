@@ -20,6 +20,14 @@ export class TagDefinitionsPanel {
     this._tagService = tagService;
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+    // 监听配置变化，保证当设置面板或其他地方调整 Pin 上限时，WebView 状态保持一致
+    this._disposables.push(
+      vscode.workspace.onDidChangeConfiguration(async (e) => {
+        if (e.affectsConfiguration("adjustHeadingInTree.tags")) {
+          await this._sendDefinitions();
+        }
+      })
+    );
     this._panel.webview.html = this._getWebviewContent();
 
     this._panel.webview.onDidReceiveMessage(
@@ -27,13 +35,16 @@ export class TagDefinitionsPanel {
         console.log("TagDefinitionsPanel: Received message:", message.command);
         switch (message.command) {
           case "getDefinitions":
-            this._sendDefinitions();
+            await this._sendDefinitions();
             break;
           case "saveDefinition":
             await this._saveDefinition(message.definition, message.oldName);
             break;
           case "deleteDefinition":
             await this._deleteDefinition(message.name);
+            break;
+          case "updateMaxPinnedDisplay":
+            await this._updateMaxPinnedDisplay(message.value);
             break;
           case "renameTagInFiles":
             await this._renameTagInFiles(message.oldName, message.newName);
@@ -105,13 +116,23 @@ export class TagDefinitionsPanel {
     }
   }
 
-  private _sendDefinitions() {
-    const defs = this._tagService.getTagsFromSettings();
-    this._panel.webview.postMessage({
+  private async _sendDefinitions() {
+    const { defs, unpinned } = await this._enforcePinLimit();
+    await this._panel.webview.postMessage({
       type: "definitions",
       data: defs,
       icons: COMMON_ICONS,
+      maxPinnedDisplay: this._getMaxPinnedDisplay(),
     });
+
+    // 若因外部设置变更导致自动 Unpin，给出提示（英文）
+    if (unpinned.length > 0) {
+      vscode.window.showInformationMessage(
+        `Pinned tags exceeded limit; automatically unpinned: ${unpinned.join(
+          ", "
+        )}.`
+      );
+    }
   }
 
   /**
@@ -139,6 +160,96 @@ export class TagDefinitionsPanel {
     return defs.filter((def) => def.pinned).length;
   }
 
+  /**
+   * 读取标签视图的最大展示数量，用于限定默认自动 Pin 的数量
+   */
+  private _getMaxPinnedDisplay(): number {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const maxPinned = config.get<number>("tags.maxPinnedDisplay", 6);
+    return Math.max(1, maxPinned);
+  }
+
+  /**
+   * 更新标签视图的最大展示数量（来自前端面板的输入）
+   */
+  private async _updateMaxPinnedDisplay(value: number): Promise<void> {
+    const min = 1;
+    const max = 20;
+    const sanitized = Math.min(max, Math.max(min, Math.floor(value || 0)));
+
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const defs = this._tagService.getTagsFromSettings();
+    const unpinned: string[] = await this._applyPinLimit(
+      defs,
+      sanitized,
+      config
+    );
+
+    await config.update(
+      "tags.maxPinnedDisplay",
+      sanitized,
+      vscode.ConfigurationTarget.Global
+    );
+
+    if (unpinned.length > 0) {
+      vscode.window.showInformationMessage(
+        `Pinned tags exceeded new limit (${sanitized}); automatically unpinned: ${unpinned.join(
+          ", "
+        )}.`
+      );
+    } else {
+      vscode.window.showInformationMessage(
+        `Tag View can display up to ${sanitized} tags without search.`
+      );
+    }
+
+    // 更新当前面板显示
+    void this._sendDefinitions();
+  }
+
+  /**
+   * 根据当前配置，若 Pin 数超过上限则自动取消多余的 Pin（保留定义顺序的前 N 个）
+   */
+  private async _enforcePinLimit(): Promise<{
+    defs: TagDefinition[];
+    unpinned: string[];
+  }> {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const defs = this._tagService.getTagsFromSettings();
+    const maxPinned = this._getMaxPinnedDisplay();
+    const unpinned = await this._applyPinLimit(defs, maxPinned, config);
+    return { defs, unpinned };
+  }
+
+  /**
+   * 实际执行 Pin 限制，必要时写回配置。
+   */
+  private async _applyPinLimit(
+    defs: TagDefinition[],
+    limit: number,
+    config: vscode.WorkspaceConfiguration
+  ): Promise<string[]> {
+    const pinnedNames = defs.filter((d) => d.pinned).map((d) => d.name);
+    const unpinned: string[] = [];
+
+    if (pinnedNames.length > limit) {
+      const toUnpin = new Set(pinnedNames.slice(limit));
+      for (const def of defs) {
+        if (toUnpin.has(def.name)) {
+          def.pinned = false;
+          unpinned.push(def.name);
+        }
+      }
+      await config.update(
+        "tags.definitions",
+        defs,
+        vscode.ConfigurationTarget.Global
+      );
+    }
+
+    return unpinned;
+  }
+
   private async _saveDefinition(def: TagDefinition, oldName?: string) {
     // 验证标签名称
     const validationError = this._validateTagName(def.name);
@@ -161,6 +272,7 @@ export class TagDefinitionsPanel {
     }
 
     let pinnedCount = this._countPinned(userDefs);
+    const maxPinnedDisplay = this._getMaxPinnedDisplay();
     const normalizedDef: TagDefinition = {
       ...def,
       pinned: !!def.pinned,
@@ -168,22 +280,28 @@ export class TagDefinitionsPanel {
     };
 
     const existingIdx = userDefs.findIndex((d) => d.name === def.name);
-    const willPin =
-      normalizedDef.pinned &&
-      (existingIdx < 0 || !userDefs[existingIdx].pinned);
+    const isNewDefinition = !oldName && existingIdx < 0;
+    const wasPinned = existingIdx >= 0 ? userDefs[existingIdx].pinned : false;
 
-    if (willPin && pinnedCount >= 6) {
-      vscode.window.showErrorMessage("Maximum 6 pinned tags allowed");
+    // 默认在可用展示名额内自动 Pin 新建标签，便于在 Tag View 中快速看到
+    if (
+      isNewDefinition &&
+      !normalizedDef.pinned &&
+      pinnedCount < maxPinnedDisplay
+    ) {
+      normalizedDef.pinned = true;
+    }
+
+    const willPin = normalizedDef.pinned && !wasPinned;
+    // 当开启 Pin 时需要遵守当前配置的上限
+    if (willPin && pinnedCount >= maxPinnedDisplay) {
+      vscode.window.showErrorMessage(
+        `Pin ${maxPinnedDisplay} tags at most，please unpin one.`
+      );
       return;
     }
 
-    if (
-      !oldName &&
-      existingIdx < 0 &&
-      !normalizedDef.pinned &&
-      pinnedCount < 6
-    ) {
-      normalizedDef.pinned = true;
+    if (willPin) {
       pinnedCount++;
     }
 
@@ -209,7 +327,7 @@ export class TagDefinitionsPanel {
       vscode.ConfigurationTarget.Global
     );
     this._tagService.scanWorkspace();
-    this._sendDefinitions();
+    await this._sendDefinitions();
     vscode.window.showInformationMessage(`Tag "${def.name}" saved!`);
   }
 
@@ -253,7 +371,7 @@ export class TagDefinitionsPanel {
     }
 
     this._tagService.scanWorkspace();
-    this._sendDefinitions();
+    await this._sendDefinitions();
 
     vscode.window.showInformationMessage(`Tag "${name}" deleted permanently!`);
   }
@@ -475,6 +593,7 @@ export class TagDefinitionsPanel {
       );
       this._tagService.scanWorkspace();
     }
+    await this._sendDefinitions();
   }
 
   private _getWebviewContent(): string {
@@ -532,6 +651,10 @@ export class TagDefinitionsPanel {
         <button class="add-btn" id="addBtn">
             <span class="codicon codicon-plus"></span> New
         </button>
+        <div class="max-pinned-control" title="The maximum number of tags displayed when there is no search (Pin is displayed first, and then other tags are supplemented)">
+            <label for="maxPinnedInput">Max pinned</label>
+            <input type="number" id="maxPinnedInput" class="max-pinned-input" min="1" max="20" value="6">
+        </div>
     </div>
 
     <div id="tagList" class="tag-list"></div>

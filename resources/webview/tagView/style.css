@@ -82,8 +82,8 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--vscode-widget-border);
 }
 .tag-chip {
@@ -177,6 +177,7 @@ body {
   opacity: 1;
   max-height: 120px;
   margin-top: 4px;
+  padding-bottom: 2px;
 }
 .empty-state {
   text-align: center;

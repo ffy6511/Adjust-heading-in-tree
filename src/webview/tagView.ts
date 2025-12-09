@@ -30,6 +30,13 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         this.updateView();
       }
     });
+
+    // 监听配置变化，确保最大展示数量等配置生效
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("adjustHeadingInTree.tags")) {
+        this.updateView();
+      }
+    });
   }
 
   /**
@@ -199,8 +206,18 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       data: payload,
       isGlobal: this._isGlobalScope,
       isMultiSelect: this._isMultiSelectMode,
+      maxPinnedDisplay: this.getMaxPinnedDisplay(),
       currentFileName: activeUri ? path.basename(activeUri.fsPath) : null,
     });
+  }
+
+  /**
+   * 读取并规范化标签视图的最大展示数量，确保配置异常时至少展示 1 个标签
+   */
+  private getMaxPinnedDisplay(): number {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const maxPinned = config.get<number>("tags.maxPinnedDisplay", 6);
+    return Math.max(1, maxPinned);
   }
 
   private async openLocation(uriStr: string, line: number) {

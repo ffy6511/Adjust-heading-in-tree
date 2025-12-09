@@ -298,6 +298,32 @@ h1 {
   flex-wrap: nowrap;
   margin-bottom: 12px;
 }
+.max-pinned-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  color: var(--vscode-descriptionForeground);
+}
+.max-pinned-control label {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.max-pinned-input {
+  width: 36px;
+  padding: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.max-pinned-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
 .tag-search {
   flex: 1 1 220px;
   min-width: 200px;

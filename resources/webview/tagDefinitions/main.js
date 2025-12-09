@@ -6,6 +6,7 @@ let editingTag = null;
 let activePicker = null; // 'icon' | 'color' | null
 let iconPickerCallback = null;
 let searchValue = "";
+let maxPinnedDisplay = 6;
 const presetColors = [
     "#e92825ff",
     "#fb8c00",
@@ -30,6 +31,11 @@ window.addEventListener('message', event => {
     if (msg.type === 'definitions') {
         definitions = msg.data;
         allIcons = msg.icons;
+        maxPinnedDisplay = clampMaxPinned(msg.maxPinnedDisplay ?? 6);
+        const input = document.getElementById('maxPinnedInput');
+        if (input) {
+            input.value = maxPinnedDisplay;
+        }
         renderTags();
     } else if (msg.type === 'renameComplete') {
         // 重命名完成
@@ -61,7 +67,7 @@ function renderTags() {
                 </div>
             </div>
             <div class="tag-actions">
-                <button class="icon-btn pin-btn ${def.pinned ? 'pinned' : ''}" data-index="${index}" title="${def.pinned ? 'Unpin this tag' : 'Pin this tag (max 6)'}">
+                <button class="icon-btn pin-btn ${def.pinned ? 'pinned' : ''}" data-index="${index}" title="${def.pinned ? 'Unpin this tag' : 'Pin this tag to show first in Tag View'}">
                     <span class="codicon ${def.pinned ? 'codicon-pinned' : 'codicon-pin'}"></span>
                 </button>
                 <button class="icon-btn save-btn" data-index="${index}" title="Save changes">
@@ -158,6 +164,18 @@ if (tagSearchInput) {
     });
 }
 
+const maxPinnedInput = document.getElementById('maxPinnedInput');
+if (maxPinnedInput) {
+    maxPinnedInput.addEventListener('change', (e) => {
+        const val = parseInt(e.target.value, 10);
+        const sanitized = clampMaxPinned(val);
+        maxPinnedDisplay = sanitized;
+        maxPinnedInput.value = sanitized;
+        // 通知扩展更新配置
+        vscode.postMessage({ command: 'updateMaxPinnedDisplay', value: sanitized });
+    });
+}
+
 function saveTag(index) {
     console.log('saveTag called, index:', index);
     const input = document.querySelector(`input[data-index="${index}"]`);
@@ -195,10 +213,15 @@ function deleteTag(index) {
 
 function togglePin(index) {
     const def = { ...definitions[index] };
+    const effectiveMax = clampMaxPinned(maxPinnedDisplay);
     const pinnedCount = definitions.filter(d => d.pinned).length;
 
-    if (!def.pinned && pinnedCount >= 6) {
-        vscode.postMessage({ command: 'showError', message: 'Maximum 6 pinned tags allowed' });
+    // 遵守当前配置的最大 Pin 数量
+    if (!def.pinned && pinnedCount >= effectiveMax) {
+        vscode.postMessage({
+            command: 'showError',
+            message: `Pin ${effectiveMax} tags at most，please unpin one.`
+        });
         return;
     }
 
@@ -282,4 +305,14 @@ function hideOverlayIfIdle() {
         document.getElementById('colorPicker').classList.contains('hidden')) {
         document.getElementById('overlay').classList.add('hidden');
     }
+}
+
+// Clamp 输入值，确保遵守配置边界
+function clampMaxPinned(value) {
+    const min = 1;
+    const max = 20;
+    if (Number.isNaN(value)) {
+        return maxPinnedDisplay;
+    }
+    return Math.min(max, Math.max(min, value));
 }

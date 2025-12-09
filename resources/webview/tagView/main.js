@@ -8,7 +8,8 @@ let state = {
     searchQuery: "",
     isGlobal: false,
     isMultiSelect: false,
-    currentFileName: null
+    currentFileName: null,
+    maxPinnedDisplay: 6
 };
 
 // UI Elements
@@ -32,6 +33,7 @@ window.addEventListener('message', event => {
         state.isGlobal = message.isGlobal;
         state.isMultiSelect = message.isMultiSelect;
         state.currentFileName = message.currentFileName;
+        state.maxPinnedDisplay = Math.max(1, message.maxPinnedDisplay ?? 6);
         
         // 确保 selectedTags 只包含存在的 tags
         // let validTags = new Set();
@@ -168,23 +170,39 @@ function renderTags() {
     if (state.searchQuery) {
         tagsToRender = baseTags.filter(t => t.toLowerCase().includes(state.searchQuery));
     } else {
+        // 无搜索时：先展示 Pin 标签，不足上限时用其他可用标签补齐
+        const maxDisplay = Math.max(1, state.maxPinnedDisplay || 6);
         const pinnedSet = new Set(
             state.definitions.filter(def => def.pinned).map(def => def.name)
         );
         const pinnedTags = [];
+        const otherTags = [];
+
         for (const tag of baseTags) {
             if (pinnedSet.has(tag)) {
                 pinnedTags.push(tag);
-                if (pinnedTags.length >= 6) {
-                    break;
-                }
+            } else {
+                otherTags.push(tag);
             }
         }
-        if (pinnedTags.length > 0) {
-            tagsToRender = pinnedTags;
-        } else {
-            tagsToRender = baseTags;
+
+        const combined = [];
+        for (const tag of pinnedTags) {
+            if (combined.length >= maxDisplay) {
+                break;
+            }
+            combined.push(tag);
         }
+        if (combined.length < maxDisplay) {
+            for (const tag of otherTags) {
+                if (combined.length >= maxDisplay) {
+                    break;
+                }
+                combined.push(tag);
+            }
+        }
+
+        tagsToRender = combined.length > 0 ? combined : baseTags;
     }
 
     if (tagsToRender.length === 0) {
@@ -271,9 +289,8 @@ function renderBlocks() {
     }
 
     if (candidates.length === 0) {
-        const emptyText = state.selectedTags.size === 0
-            ? '当前范围内没有可显示的区块'
-            : 'No blocks found with all selected tags';
+        const emptyText = state.selectedTags.size = 
+            'No blocks found with all selected tags';
         blocksContainer.innerHTML = `<div class="empty-state">${emptyText}</div>`;
         return;
     }

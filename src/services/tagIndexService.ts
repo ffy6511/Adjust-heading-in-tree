@@ -180,6 +180,15 @@ export class TagIndexService {
   }
 
   /**
+   * 从配置中读取标签视图的最大展示数量，用于限制自动 Pin 的数量
+   */
+  private getMaxPinnedDisplay(): number {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const maxPinned = config.get<number>("tags.maxPinnedDisplay", 6);
+    return Math.max(1, maxPinned);
+  }
+
+  /**
    * 文档保存时自动注册新标签
    * @param document 被保存的文档
    */
@@ -210,6 +219,7 @@ export class TagIndexService {
     );
     const existingNames = new Set(existingDefs.map((d) => d.name));
     let pinnedCount = this.countPinned(existingDefs);
+    const maxPinnedDisplay = this.getMaxPinnedDisplay();
 
     const newDefs: TagDefinition[] = [];
 
@@ -221,7 +231,7 @@ export class TagIndexService {
 
       // 验证标签名称格式，且长度至少为 2（只排除空格）
       if (/^[^ ]{2,}$/.test(tag)) {
-        const shouldPin = pinnedCount < 6;
+        const shouldPin = pinnedCount < maxPinnedDisplay;
         if (shouldPin) {
           pinnedCount++;
         }
