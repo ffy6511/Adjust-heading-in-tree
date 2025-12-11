@@ -176,7 +176,8 @@ export class HeadingProvider implements vscode.TreeDataProvider<HeadingNode> {
       }
       changed.push(node);
       this._onDidChangeTreeData.fire(changed);
-      if (this.treeView) {
+      // 仅在侧边栏已可见时才自动滚动，避免切换文件时强制聚焦 AHT 面板
+      if (this.treeView?.visible) {
         void this.treeView.reveal(node, {
           expand: true,
           select: false,

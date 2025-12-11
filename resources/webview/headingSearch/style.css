@@ -1,0 +1,17 @@
+.heading-search-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--vscode-editor-background);
+  padding: 4px 0 8px 0;
+}
+
+.results-container {
+  padding: 0 2px 8px 2px;
+}
+
+.empty-state {
+  padding: 12px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}

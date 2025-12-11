@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.3.5",
+  "version": "0.3.7",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -39,7 +39,8 @@
     "onCommand:headingNavigator.clearFilter",
     "onCommand:headingNavigator.showTagViewHelp",
     "onView:headingNavigator.headingTree",
-    "onView:headingNavigator.tagView"
+    "onView:headingNavigator.tagView",
+    "onView:headingNavigator.headingSearch"
   ],
   "main": "./dist/extension.js",
   "scripts": {
@@ -75,6 +76,11 @@
         {
           "id": "headingNavigator.tagView",
           "name": "Tag View",
+          "type": "webview"
+        },
+        {
+          "id": "headingNavigator.headingSearch",
+          "name": "Heading Search",
           "type": "webview"
         }
       ]

@@ -16,6 +16,7 @@ import { TagIndexService } from "./services/tagIndexService";
 import { TagViewProvider } from "./webview/tagView";
 import { registerEditTagsCommand } from "./commands/editTags";
 import { TagDefinitionsPanel } from "./webview/tagDefinitionsPanel";
+import { HeadingSearchProvider } from "./webview/headingSearch";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Initialize Tag Service
@@ -27,6 +28,18 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerWebviewViewProvider(
       TagViewProvider.viewType,
       tagViewProvider
+    )
+  );
+
+  // Register Heading Search View（独立状态，不与 Tag View 共享）
+  const headingSearchProvider = new HeadingSearchProvider(
+    context.extensionUri,
+    tagService
+  );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      HeadingSearchProvider.viewType,
+      headingSearchProvider
     )
   );
 
