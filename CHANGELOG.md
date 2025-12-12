@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.7] - 2025-12-12
+
+### Feat
+
+- Add the function of searching for titles, allowing the setting of the retrieval mode for the current file/global file;
+- Supports displaying different prefixes based on the set tag;
+
 ## [0.3.5] - 2025-12-09
 
 ### Feat

@@ -81,7 +81,8 @@
         {
           "id": "headingNavigator.headingSearch",
           "name": "Heading Search",
-          "type": "webview"
+          "type": "webview",
+          "visibility": "collapsed"
         }
       ]
     },
