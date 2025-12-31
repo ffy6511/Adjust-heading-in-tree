@@ -1,0 +1,75 @@
+:root {
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+  --vscode-button-background: #3c3c3c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #4c4c4c;
+}
+
+body {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 5px;
+}
+
+button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+#search-bar {
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 5px;
+}
+
+#mindmap {
+  width: 100vw;
+  height: 100vh;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.node circle {
+  fill: var(--vscode-editor-foreground);
+  stroke: var(--vscode-editor-background);
+  stroke-width: 1.5px;
+}
+
+.node.has-tags circle {
+    stroke: var(--vscode-list-highlightForeground);
+    stroke-width: 3px;
+}
+
+.node text {
+  font: 12px sans-serif;
+  fill: var(--vscode-editor-foreground);
+}
+
+.link {
+  fill: none;
+  stroke: var(--vscode-editor-foreground);
+  stroke-opacity: 0.4;
+  stroke-width: 1.5px;
+}

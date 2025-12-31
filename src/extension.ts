@@ -17,6 +17,7 @@ import { TagViewProvider } from "./webview/tagView";
 import { registerEditTagsCommand } from "./commands/editTags";
 import { TagDefinitionsPanel } from "./webview/tagDefinitionsPanel";
 import { HeadingSearchProvider } from "./webview/headingSearch";
+import { MindmapViewProvider } from "./webview/mindmapView";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Initialize Tag Service
@@ -44,6 +45,19 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   const headingProvider = new HeadingProvider();
+
+  // Register Mind Map View
+  const mindmapViewProvider = new MindmapViewProvider(
+    context.extensionUri,
+    headingProvider,
+    tagService
+  );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      MindmapViewProvider.viewType,
+      mindmapViewProvider
+    )
+  );
 
   const dragAndDropController = new HeadingDragAndDropController(
     headingProvider
