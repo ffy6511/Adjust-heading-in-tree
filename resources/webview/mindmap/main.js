@@ -5,7 +5,7 @@
     let dataRoot;
     let currentTransform = d3.zoomIdentity;
     let collapsedNodes = new Set();
-    const CIRCLE_RADIUS = 6;
+    const CIRCLE_RADIUS = 4;
 
     window.addEventListener("message", (event) => {
         const message = event.data;
@@ -54,30 +54,43 @@
         const height = window.innerHeight;
 
         const labelLineHeight = 14;
-        const labelPaddingY = 6;
+        const labelPaddingY = 3;
         const labelPaddingX = 8;
         const lineLimit = 18;
+        const labelGap = 4;
+        const isWideChar = (ch) => /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFF60\uFFE0-\uFFE6]/.test(ch);
+        const charWidth = (ch) => (isWideChar(ch) ? 2 : 1);
+        const lineWidth = (text) => Array.from(text).reduce((w, ch) => w + charWidth(ch), 0);
+        const wrapLines = (text, maxLines) => {
+            const lines = [];
+            let current = "";
+            let currentWidth = 0;
+            for (const ch of Array.from(text)) {
+                const w = charWidth(ch);
+                if (currentWidth + w > lineLimit) {
+                    if (lines.length === maxLines - 1) {
+                        lines.push(current + "…");
+                        return lines;
+                    }
+                    lines.push(current);
+                    current = ch;
+                    currentWidth = w;
+                } else {
+                    current += ch;
+                    currentWidth += w;
+                }
+            }
+            lines.push(current || "");
+            return lines.slice(0, maxLines);
+        };
         const labelLines = (d) => {
             const text = d.data.label || "";
-            const chunks = [];
-            let remaining = text;
-            while (remaining.length > lineLimit && chunks.length < 2) {
-                chunks.push(remaining.slice(0, lineLimit));
-                remaining = remaining.slice(lineLimit);
-            }
-            if (chunks.length < 2 && remaining.length > 0) {
-                chunks.push(remaining);
-            }
-            if (chunks.length > 2) {
-                chunks[1] = chunks[1].slice(0, lineLimit - 1) + "…";
-                chunks.length = 2;
-            }
-            return chunks.length === 0 ? [""] : chunks;
+            return wrapLines(text, 2);
         };
         const labelWidth = d => {
             const lines = labelLines(d);
-            const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
-            const textWidth = Math.min(longest * 7, lineLimit * 7);
+            const longest = lines.reduce((m, l) => Math.max(m, lineWidth(l)), 0);
+            const textWidth = longest * 7;
             return textWidth + labelPaddingX * 2;
         };
         const labelHeight = d => labelLines(d).length * labelLineHeight + labelPaddingY * 2;
@@ -87,9 +100,13 @@
         const measureBounds = (node) => {
             const hasTags = node.data.tags && node.data.tags.length > 0;
             const lblHeight = labelHeight(node);
-            const baseTop = node.x - (CIRCLE_RADIUS + 6 + lblHeight);
-            const baseBottom = node.x + CIRCLE_RADIUS + 10 + (hasTags ? tagHeight : 0);
-            return { top: baseTop, bottom: baseBottom };
+            const lblWidth = labelWidth(node);
+            const halfLblWidth = lblWidth / 2;
+            const baseTop = node.x - (CIRCLE_RADIUS + labelGap + lblHeight);
+            const baseBottom = node.x + CIRCLE_RADIUS + 8 + (hasTags ? tagHeight : 0);
+            const baseLeft = node.y - halfLblWidth;
+            const baseRight = node.y + halfLblWidth;
+            return { top: baseTop, bottom: baseBottom, left: baseLeft, right: baseRight };
         };
 
         const rebuildLayout = () => {
@@ -106,7 +123,7 @@
             root = d3.hierarchy(layoutRoot);
 
             const tree = d3.tree()
-                .nodeSize([64, 160])
+                .nodeSize([48, 160])
                 .separation(() => 1)
                 .size([height, width - 200]);
             tree(root);
@@ -126,6 +143,31 @@
                     lastBottom = bounds.bottom;
                 });
             });
+
+            // 额外的跨层碰撞处理，避免不同 depth 间标签互相覆盖
+            const allNodes = root.descendants().slice().sort((a, b) => a.x - b.x);
+            for (let i = 0; i < allNodes.length; i++) {
+                const a = allNodes[i];
+                const boxA = measureBounds(a);
+                for (let j = i + 1; j < allNodes.length; j++) {
+                    const b = allNodes[j];
+                    let boxB = measureBounds(b);
+                    // 如果在垂直方向已经间隔很大，可以提前结束内循环
+                    if (boxB.top > boxA.bottom + paddingBetweenLabels) {
+                        break;
+                    }
+                    // 仅在水平方向有交叉时才考虑
+                    const horizontalOverlap = !(boxA.right + paddingBetweenLabels < boxB.left || boxB.right + paddingBetweenLabels < boxA.left);
+                    if (!horizontalOverlap) {
+                        continue;
+                    }
+                    if (boxA.bottom + paddingBetweenLabels > boxB.top) {
+                        const shift = (boxA.bottom + paddingBetweenLabels) - boxB.top;
+                        b.x += shift;
+                        boxB = measureBounds(b);
+                    }
+                }
+            }
         };
 
         rebuildLayout();
@@ -325,7 +367,7 @@
             labelGroups.append("rect")
                 .attr("class", "label-bg")
                 .attr("x", d => -(labelWidth(d) / 2))
-                .attr("y", d => -circleRadius - 6 - labelHeight(d))
+                .attr("y", d => -circleRadius - labelGap - labelHeight(d))
                 .attr("rx", 6)
                 .attr("ry", 6)
                 .attr("width", d => labelWidth(d))
@@ -337,7 +379,7 @@
                 .each(function (d) {
                     const lines = labelLines(d);
                     const totalHeight = lines.length * labelLineHeight;
-                    const startY = -circleRadius - 6 - labelHeight(d) + labelPaddingY + labelLineHeight;
+                    const startY = -circleRadius - labelGap - labelHeight(d) + labelPaddingY + labelLineHeight;
                     const text = d3.select(this).attr("y", startY);
                     lines.forEach((line, idx) => {
                         text.append("tspan")
@@ -349,7 +391,7 @@
 
             node.filter(d => d.data.tags && d.data.tags.length > 0)
                 .append("text")
-                .attr("dy", circleRadius + 10)
+                .attr("dy", circleRadius + 7)
                 .attr("text-anchor", "middle")
                 .style("font-size", "10px")
                 .style("fill", "#a0aec0")
