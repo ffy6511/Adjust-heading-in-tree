@@ -17,10 +17,13 @@ import { TagViewProvider } from "./webview/tagView";
 import { registerEditTagsCommand } from "./commands/editTags";
 import { TagDefinitionsPanel } from "./webview/tagDefinitionsPanel";
 import { HeadingSearchProvider } from "./webview/headingSearch";
+import { MindmapViewProvider } from "./webview/mindmapView";
+import { ViewStateService } from "./services/viewStateService";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Initialize Tag Service
   const tagService = TagIndexService.getInstance();
+  const viewStateService = ViewStateService.getInstance();
 
   // Register Tag View
   const tagViewProvider = new TagViewProvider(context.extensionUri, tagService);
@@ -45,6 +48,20 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const headingProvider = new HeadingProvider();
 
+  // Register Mind Map View
+  const mindmapViewProvider = new MindmapViewProvider(
+    context.extensionUri,
+    headingProvider,
+    tagService,
+    viewStateService
+  );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      MindmapViewProvider.viewType,
+      mindmapViewProvider
+    )
+  );
+
   const dragAndDropController = new HeadingDragAndDropController(
     headingProvider
   );
@@ -59,6 +76,14 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   headingProvider.setTreeView(treeView);
+
+  treeView.onDidExpandElement((e) => {
+    viewStateService.setExpanded(e.element.id, true);
+  });
+
+  treeView.onDidCollapseElement((e) => {
+    viewStateService.setExpanded(e.element.id, false);
+  });
 
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
@@ -325,6 +350,24 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("headingNavigator.clearFilter", () => {
       headingProvider.clearFilter();
+    })
+  );
+
+  let mindmapActive = false;
+  vscode.commands.executeCommand(
+    "setContext",
+    "headingNavigator.mindmapActive",
+    mindmapActive
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("headingNavigator.toggleMindmapView", () => {
+      mindmapActive = !mindmapActive;
+      vscode.commands.executeCommand(
+        "setContext",
+        "headingNavigator.mindmapActive",
+        mindmapActive
+      );
     })
   );
 
