@@ -60,6 +60,11 @@ button:hover {
   transform: scale(1.1);
 }
 
+.label-bg {
+  fill: rgba(255, 255, 255, 0.12);
+  transition: opacity 0.15s ease;
+}
+
 .node text {
   font: 12px sans-serif;
   font-weight: bold;

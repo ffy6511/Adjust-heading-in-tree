@@ -40,7 +40,41 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (data) => {
       switch (data.type) {
         case "revealHeading":
-          vscode.commands.executeCommand("headingNavigator.reveal", data.range);
+          {
+            const toPosition = (pos: any) => {
+              if (!pos) {
+                return undefined;
+              }
+              // VS Code Range serializes to {start, end}, but sometimes we may get {_start, _end}
+              const candidate =
+                pos.start || pos.anchor || pos._start || pos || pos.position;
+              const line = typeof candidate.line === "number" ? candidate.line : candidate._line;
+              const character =
+                typeof candidate.character === "number"
+                  ? candidate.character
+                  : candidate._character;
+              if (typeof line === "number" && typeof character === "number") {
+                return new vscode.Position(line, character);
+              }
+              return undefined;
+            };
+            const toRange = (r: any) => {
+              if (!r) {
+                return undefined;
+              }
+              const start = toPosition(r.start) ?? toPosition(r._start);
+              const end = toPosition(r.end) ?? toPosition(r._end) ?? start;
+              if (start && end) {
+                return new vscode.Range(start, end);
+              }
+              return undefined;
+            };
+
+            const range = toRange(data.range);
+            if (range) {
+              vscode.commands.executeCommand("headingNavigator.reveal", range);
+            }
+          }
           break;
         case "getHeadingContent":
           {
@@ -103,6 +137,16 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
       ? this._tagService.getTagsForFile(activeEditor.document.uri)
       : [];
 
+    const serializeRange = (range: vscode.Range | undefined) => {
+      if (!range) {
+        return undefined;
+      }
+      return {
+        start: { line: range.start.line, character: range.start.character },
+        end: { line: range.end.line, character: range.end.character },
+      };
+    };
+
     const annotateTags = (heading: any): any => {
       const tags: string[] = [];
       if (activeEditor) {
@@ -119,6 +163,7 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
       const children = heading.children?.map((child: any) => annotateTags(child)) ?? [];
       return {
         ...heading,
+        range: serializeRange(heading.range),
         tags,
         children,
       };

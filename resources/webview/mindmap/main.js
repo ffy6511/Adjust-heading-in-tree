@@ -5,9 +5,6 @@
     let dataRoot;
     let currentTransform = d3.zoomIdentity;
     let collapsedNodes = new Set();
-    let renderView = () => {};
-    const contentCache = new Map();
-    const visibleLeafContent = new Set();
     const CIRCLE_RADIUS = 6;
 
     window.addEventListener("message", (event) => {
@@ -15,10 +12,6 @@
         switch (message.type) {
             case "update":
                 updateMindmap(message.headings, message.expandedNodes, message.docTitle);
-                break;
-            case "headingContent":
-                contentCache.set(message.nodeId, message.content ?? "");
-                renderView();
                 break;
         }
     });
@@ -58,17 +51,43 @@
         const width = window.innerWidth;
         const height = window.innerHeight;
 
-        const labelWidth = d => Math.min((d.data.label || "").length, 20) * 7;
-        const labelHeight = 10;
+        const labelLineHeight = 14;
+        const labelPaddingY = 6;
+        const labelPaddingX = 8;
+        const lineLimit = 18;
+        const labelLines = (d) => {
+            const text = d.data.label || "";
+            const chunks = [];
+            let remaining = text;
+            while (remaining.length > lineLimit && chunks.length < 2) {
+                chunks.push(remaining.slice(0, lineLimit));
+                remaining = remaining.slice(lineLimit);
+            }
+            if (chunks.length < 2 && remaining.length > 0) {
+                chunks.push(remaining);
+            }
+            if (chunks.length > 2) {
+                chunks[1] = chunks[1].slice(0, lineLimit - 1) + "…";
+                chunks.length = 2;
+            }
+            return chunks.length === 0 ? [""] : chunks;
+        };
+        const labelWidth = d => {
+            const lines = labelLines(d);
+            const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
+            const textWidth = Math.min(longest * 7, lineLimit * 7);
+            return textWidth + labelPaddingX * 2;
+        };
+        const labelHeight = d => labelLines(d).length * labelLineHeight + labelPaddingY * 2;
         const tagHeight = 12;
-        const paddingBetweenLabels = 4;
+        const paddingBetweenLabels = 6;
 
         const measureBounds = (node) => {
             const hasTags = node.data.tags && node.data.tags.length > 0;
-            const hasContent = visibleLeafContent.has(node.data.id);
-            const top = node.x - (CIRCLE_RADIUS + 6 + labelHeight);
-            const bottom = node.x + CIRCLE_RADIUS + 10 + (hasTags ? tagHeight : 0) + (hasContent ? 50 : 0);
-            return { top, bottom };
+            const lblHeight = labelHeight(node);
+            const baseTop = node.x - (CIRCLE_RADIUS + 6 + lblHeight);
+            const baseBottom = node.x + CIRCLE_RADIUS + 10 + (hasTags ? tagHeight : 0);
+            return { top: baseTop, bottom: baseBottom };
         };
 
         const rebuildLayout = () => {
@@ -261,60 +280,14 @@
                         rebuildLayout();
                         render();
                     } else {
-                        if (visibleLeafContent.has(d.data.id)) {
-                            visibleLeafContent.delete(d.data.id);
-                        } else {
-                            visibleLeafContent.add(d.data.id);
-                            if (!contentCache.has(d.data.id)) {
-                                vscode.postMessage({
-                                    type: 'getHeadingContent',
-                                    nodeId: d.data.id
-                                });
-                            }
-                        }
                         vscode.postMessage({
                             type: 'revealHeading',
                             range: d.data.range
                         });
-                        render();
                     }
                 })
-                .on("dblclick", function (event, d) {
-                    const text = d3.select(this).select("text");
-                    const textContent = text.text();
-                    text.style("display", "none");
-
-                    const foreignObject = d3.select(this)
-                        .append("foreignObject")
-                        .attr("width", 200)
-                        .attr("height", 30)
-                        .attr("x", -100)
-                        .attr("y", -15);
-
-                    const input = foreignObject
-                        .append("xhtml:input")
-                        .attr("type", "text")
-                        .style("width", "100%")
-                        .style("height", "100%")
-                        .attr("value", textContent)
-                        .on("blur", function () {
-                            const newText = d3.select(this).property("value");
-                            text.text(newText);
-                            text.style("display", null);
-                            foreignObject.remove();
-                            vscode.postMessage({
-                                type: 'editHeading',
-                                nodeId: d.data.id,
-                                newText: newText
-                            });
-                        })
-                        .on("keydown", function (event) {
-                            if (event.key === "Enter") {
-                                d3.select(this).dispatch("blur");
-                            }
-                        });
-
-                    input.node().focus();
+                .on("dblclick", function () {
+                    // intentionally no-op to avoid interfering with zoom
                 });
 
             const circleRadius = CIRCLE_RADIUS;
@@ -325,59 +298,60 @@
             node.filter(d => d.data._children && d.data._children.length > 0 && collapsedNodes.has(d.data.id))
                 .append("text")
                 .attr("class", "node-plus")
-                .attr("x", circleRadius + 4)
+                .attr("x", circleRadius + 6)
                 .attr("dy", 4)
                 .attr("text-anchor", "middle")
                 .text("+")
                 .attr("fill", d => nodeFill(d));
 
-            node.append("text")
-                .attr("dy", -circleRadius - 6)
+            const labelGroups = node.append("g")
+                .attr("class", "label")
+                .on("click", function (event, d) {
+                    event.stopPropagation();
+                    vscode.postMessage({
+                        type: 'revealHeading',
+                        range: d.data.range
+                    });
+                })
+                .on("mouseenter", function () {
+                    d3.select(this).select("rect.label-bg").style("opacity", 0.2);
+                })
+                .on("mouseleave", function () {
+                    d3.select(this).select("rect.label-bg").style("opacity", 0);
+                });
+
+            labelGroups.append("rect")
+                .attr("class", "label-bg")
+                .attr("x", d => -(labelWidth(d) / 2))
+                .attr("y", d => -circleRadius - 6 - labelHeight(d))
+                .attr("rx", 6)
+                .attr("ry", 6)
+                .attr("width", d => labelWidth(d))
+                .attr("height", d => labelHeight(d))
+                .style("opacity", 0);
+
+            labelGroups.append("text")
                 .attr("text-anchor", "middle")
-                .text(d => d.data.label.length > 20 ? d.data.label.substring(0, 20) + "..." : d.data.label);
+                .each(function (d) {
+                    const lines = labelLines(d);
+                    const totalHeight = lines.length * labelLineHeight;
+                    const startY = -circleRadius - 6 - labelHeight(d) + labelPaddingY + labelLineHeight;
+                    const text = d3.select(this).attr("y", startY);
+                    lines.forEach((line, idx) => {
+                        text.append("tspan")
+                            .attr("x", 0)
+                            .attr("dy", idx === 0 ? 0 : labelLineHeight)
+                            .text(line);
+                    });
+                });
 
             node.filter(d => d.data.tags && d.data.tags.length > 0)
                 .append("text")
-                .attr("dy", circleRadius + 12)
+                .attr("dy", circleRadius + 10)
                 .attr("text-anchor", "middle")
                 .style("font-size", "10px")
                 .style("fill", "#a0aec0")
                 .text(d => d.data.tags.join(', '));
-
-            const leafNodesWithContent = node.filter(d => !d.data._children || d.data._children.length === 0)
-                .filter(d => visibleLeafContent.has(d.data.id) && contentCache.has(d.data.id));
-
-            leafNodesWithContent.append("g")
-                .attr("class", "leaf-content")
-                .each(function (d) {
-                    const g = d3.select(this);
-                    const content = contentCache.get(d.data.id) || "";
-                    const limited = content.slice(0, 160);
-                    const padding = 10;
-                    const textWidth = Math.min(Math.max(limited.length * 6, 80), 260);
-                    const rectWidth = textWidth + padding * 2;
-                    const rectHeight = 40;
-                    const yOffset = circleRadius + 14;
-
-                    g.append("rect")
-                        .attr("x", -rectWidth / 2)
-                        .attr("y", yOffset)
-                        .attr("rx", 8)
-                        .attr("ry", 8)
-                        .attr("width", rectWidth)
-                        .attr("height", rectHeight)
-                        .attr("fill", "#111827")
-                        .attr("stroke", colorFor(d))
-                        .attr("stroke-width", 1.5);
-
-                    g.append("text")
-                        .attr("x", 0)
-                        .attr("y", yOffset + rectHeight / 2 + 4)
-                        .attr("text-anchor", "middle")
-                        .style("font-size", "11px")
-                        .style("fill", "#e5e7eb")
-                        .text(limited);
-                });
         };
 
         const zoom = d3.zoom().on("zoom", (event) => {
@@ -387,7 +361,6 @@
 
         d3.select("#mindmap").call(zoom).call(zoom.transform, currentTransform);
 
-        renderView = render;
         render();
     }
 })();
