@@ -1,14 +1,6 @@
-:root {
-  --vscode-editor-background: #1e1e1e;
-  --vscode-editor-foreground: #d4d4d4;
-  --vscode-button-background: #3c3c3c;
-  --vscode-button-foreground: #ffffff;
-  --vscode-button-hoverBackground: #4c4c4c;
-}
-
 body {
-  background-color: var(--vscode-editor-background);
-  color: var(--vscode-editor-foreground);
+  background-color: var(--vscode-editor-background, #0b1221);
+  color: var(--vscode-editor-foreground, #e5e7eb);
   font-family: sans-serif;
   margin: 0;
   padding: 0;
@@ -24,22 +16,22 @@ body {
 }
 
 button {
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border: none;
-    padding: 5px 10px;
-    cursor: pointer;
+  background-color: var(--vscode-button-background, #2f333a);
+  color: var(--vscode-button-foreground, #ffffff);
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
 }
 
 button:hover {
-    background-color: var(--vscode-button-hoverBackground);
+  background-color: var(--vscode-button-hoverBackground, #3d434d);
 }
 
 #search-bar {
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border);
-    padding: 5px;
+  background-color: var(--vscode-input-background, #1f2937);
+  color: var(--vscode-input-foreground, #e5e7eb);
+  border: 1px solid var(--vscode-input-border, #4b5563);
+  padding: 5px;
 }
 
 #mindmap {
@@ -51,24 +43,25 @@ button:hover {
   cursor: pointer;
 }
 
-.node rect {
-  stroke: var(--vscode-editor-background);
-  stroke-width: 1.5px;
+.node circle {
+  stroke: #ffffff;
+  stroke-width: 2px;
 }
 
-.node.has-tags rect {
-    stroke: var(--vscode-list-highlightForeground);
-    stroke-width: 3px;
+.node.has-tags circle {
+  stroke: var(--vscode-list-highlightForeground, #7aa2f7);
+  stroke-width: 3px;
 }
 
 .node text {
   font: 12px sans-serif;
-  fill: var(--vscode-editor-foreground);
+  fill: var(--vscode-editor-foreground, #e5e7eb);
+  pointer-events: none;
 }
 
 .link {
   fill: none;
-  stroke: var(--vscode-editor-foreground);
-  stroke-opacity: 0.4;
-  stroke-width: 1.5px;
+  stroke: var(--vscode-editor-foreground, #cfd8e3);
+  stroke-opacity: 0.85;
+  stroke-width: 3px;
 }

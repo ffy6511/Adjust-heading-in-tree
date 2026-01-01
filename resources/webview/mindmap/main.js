@@ -5,7 +5,7 @@
         const message = event.data;
         switch (message.type) {
             case "update":
-                updateMindmap(message.headings, message.expandedNodes);
+                updateMindmap(message.headings, message.expandedNodes, message.docTitle);
                 break;
             case "headingContent":
                 {
@@ -25,130 +25,162 @@
     let root;
     let collapsedNodes = new Set();
 
-    function updateMindmap(headings, expandedNodes) {
+    function updateMindmap(headings, expandedNodes, docTitle) {
         if (!headings || headings.length === 0) {
             d3.select("#mindmap").selectAll("*").remove();
             return;
         }
 
+        const virtualRoot = {
+            id: "__root__",
+            label: docTitle || "Mind Map",
+            level: 0,
+            children: headings,
+        };
+        root = d3.hierarchy(virtualRoot);
+
         const allNodeIds = new Set();
+        const nodeById = new Map();
         function collectIds(node) {
             allNodeIds.add(node.id);
+            nodeById.set(node.id, node);
             if (node.children) {
                 node.children.forEach(collectIds);
             }
         }
-        headings.forEach(collectIds);
+        collectIds(virtualRoot);
 
         const expandedNodeSet = new Set(expandedNodes);
-        collapsedNodes = new Set([...allNodeIds].filter(id => !expandedNodeSet.has(id)));
+        collapsedNodes = new Set(
+            [...allNodeIds].filter(id => {
+                if (id === "__root__") return false;
+                const node = nodeById.get(id);
+                const hasChildren = node?.children && node.children.length > 0;
+                return hasChildren && !expandedNodeSet.has(id);
+            })
+        );
 
-        if (headings.length > 1) {
-            root = d3.hierarchy({
-                label: "Root",
-                children: headings,
-            });
-        } else {
-            root = d3.hierarchy(headings[0]);
-        }
         const width = window.innerWidth;
         const height = window.innerHeight;
 
-        const tree = d3.tree().size([height, width - 200]);
+        const labelWidth = d => Math.min((d.data.label || "").length, 20) * 7;
+        const minRowGap = d => 10 + labelWidth(d) / 3;
+
+        const tree = d3.tree()
+            .nodeSize([48, 160])
+            .separation((a, b) => {
+                const base = a.parent === b.parent ? 1 : 1.2;
+                const span = Math.max(labelWidth(a), labelWidth(b));
+                return base + span / 140;
+            })
+            .size([height, width - 200]);
         tree(root);
 
-        const svg = d3.select("#mindmap")
-            .attr("width", width)
-            .attr("height", height)
-            .append("g")
-            .attr("transform", "translate(100,0)");
-
-        const link = svg.selectAll(".link")
-            .data(root.descendants().slice(1))
-            .enter().append("path")
-            .attr("class", "link")
-            .attr("d", d => {
-                return "M" + d.y + "," + d.x
-                    + "C" + (d.y + d.parent.y) / 2 + "," + d.x
-                    + " " + (d.y + d.parent.y) / 2 + "," + d.parent.x
-                    + " " + d.parent.y + "," + d.parent.x;
+        // 简单纵向防重叠：同一深度按 x 排序并拉开最小间距
+        const layers = d3.group(root.descendants(), d => d.depth);
+        layers.forEach((nodes) => {
+            nodes.sort((a, b) => a.x - b.x);
+            let lastX = -Infinity;
+            nodes.forEach((node, idx) => {
+                if (idx === 0) {
+                    lastX = node.x;
+                    return;
+                }
+                const gap = Math.max(minRowGap(node), minRowGap(nodes[idx - 1]));
+                if (node.x - lastX < gap) {
+                    node.x = lastX + gap;
+                }
+                lastX = node.x;
             });
+        });
 
         const searchBar = document.getElementById("search-bar");
-        searchBar.addEventListener("input", () => {
-            render();
-        });
+        if (searchBar) {
+            searchBar.oninput = () => {
+                render();
+            };
+        }
 
         const resetButton = document.getElementById("reset-view");
-        resetButton.addEventListener("click", () => {
-            d3.select("#mindmap").call(zoom.transform, d3.zoomIdentity);
-        });
+        if (resetButton) {
+            resetButton.onclick = () => {
+                d3.select("#mindmap").call(zoom.transform, d3.zoomIdentity);
+            };
+        }
 
         const fitButton = document.getElementById("fit-to-window");
-        fitButton.addEventListener("click", () => {
-            const bounds = d3.select("#mindmap g").node().getBBox();
-            const fullWidth = window.innerWidth;
-            const fullHeight = window.innerHeight;
-            const width = bounds.width;
-            const height = bounds.height;
-            const midX = bounds.x + width / 2;
-            const midY = bounds.y + height / 2;
-            if (width === 0 || height === 0) return;
-            const scale = 0.9 / Math.max(width / fullWidth, height / fullHeight);
-            const translate = [fullWidth / 2 - scale * midX, fullHeight / 2 - scale * midY];
+        if (fitButton) {
+            fitButton.onclick = () => {
+                const bounds = d3.select("#mindmap g").node().getBBox();
+                const fullWidth = window.innerWidth;
+                const fullHeight = window.innerHeight;
+                const width = bounds.width;
+                const height = bounds.height;
+                const midX = bounds.x + width / 2;
+                const midY = bounds.y + height / 2;
+                if (width === 0 || height === 0) return;
+                const scale = 0.9 / Math.max(width / fullWidth, height / fullHeight);
+                const translate = [fullWidth / 2 - scale * midX, fullHeight / 2 - scale * midY];
 
-            const t = d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale);
-            d3.select("#mindmap").transition().duration(750).call(zoom.transform, t);
-        });
+                const t = d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale);
+                d3.select("#mindmap").transition().duration(750).call(zoom.transform, t);
+            };
+        }
 
         const backButton = document.getElementById("back-to-toc");
-        backButton.addEventListener("click", () => {
-            vscode.postMessage({
-                type: 'toggleMindmapView'
-            });
-        });
+        if (backButton) {
+            backButton.onclick = () => {
+                vscode.postMessage({
+                    type: 'toggleMindmapView'
+                });
+            };
+        }
 
         const exportPngButton = document.getElementById("export-png");
-        exportPngButton.addEventListener("click", () => {
-            const svg = d3.select("#mindmap").node();
-            const svgString = new XMLSerializer().serializeToString(svg);
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            const v = canvg.Canvg.fromString(ctx, svgString);
-            v.start();
-            const dataUrl = canvas.toDataURL("image/png");
-            const a = document.createElement("a");
-            a.href = dataUrl;
-            a.download = "mindmap.png";
-            a.click();
-        });
+        if (exportPngButton) {
+            exportPngButton.onclick = () => {
+                const svg = d3.select("#mindmap").node();
+                const svgString = new XMLSerializer().serializeToString(svg);
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                const v = canvg.Canvg.fromString(ctx, svgString);
+                v.start();
+                const dataUrl = canvas.toDataURL("image/png");
+                const a = document.createElement("a");
+                a.href = dataUrl;
+                a.download = "mindmap.png";
+                a.click();
+            };
+        }
 
         const exportSvgButton = document.getElementById("export-svg");
-        exportSvgButton.addEventListener("click", () => {
-            const svg = d3.select("#mindmap").node();
-            const svgString = new XMLSerializer().serializeToString(svg);
-            const blob = new Blob([svgString], { type: "image/svg+xml" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "mindmap.svg";
-            a.click();
-            URL.revokeObjectURL(url);
-        });
+        if (exportSvgButton) {
+            exportSvgButton.onclick = () => {
+                const svg = d3.select("#mindmap").node();
+                const svgString = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgString], { type: "image/svg+xml" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "mindmap.svg";
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+        }
 
         const render = () => {
             d3.select("#mindmap").selectAll("*").remove();
 
-            const filterText = searchBar.value.toLowerCase();
+            const filterText = (searchBar?.value ?? "").toLowerCase();
             const filteredNodes = root.descendants().filter(d => {
+                if (d.depth === 0) return true; // always keep virtual root
                 if (filterText === "") return true;
                 return d.data.tags && d.data.tags.some(t => t.toLowerCase().includes(filterText));
             });
 
-            let visibleNodes = filteredNodes.filter(d => !d.ancestors().some(a => collapsedNodes.has(a.data.id)));
-            if (headings.length > 1) {
-                visibleNodes = visibleNodes.filter(d => d.depth > 0);
-            }
+            let visibleNodes = filteredNodes.filter(
+                d => !d.ancestors().slice(1).some(a => collapsedNodes.has(a.data.id))
+            );
             const visibleLinks = root.links().filter(l => visibleNodes.includes(l.source) && visibleNodes.includes(l.target));
 
             const svg = d3.select("#mindmap")
@@ -157,10 +189,27 @@
                 .append("g")
                 .attr("transform", "translate(100,0)");
 
+            const palette = [
+                "#4dd0e1",
+                "#ff9800",
+                "#ba68c8",
+                "#8bc34a",
+                "#ef5350",
+                "#cddc39",
+                "#7986cb",
+                "#26c6da"
+            ];
+            const colorFor = d => {
+                if (d.depth === 0) return "#ff9800";
+                const idx = (d.data.level ?? d.depth) % palette.length;
+                return palette[idx];
+            };
+
             svg.selectAll(".link")
                 .data(visibleLinks)
                 .enter().append("path")
                 .attr("class", "link")
+                .attr("stroke", d => colorFor(d.target))
                 .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
 
             const node = svg.selectAll(".node")
@@ -173,11 +222,10 @@
                     if (d.children) {
                         if (collapsedNodes.has(d.data.id)) {
                             collapsedNodes.delete(d.data.id);
-                            // Remove content preview
                             d3.select(this).select("text").selectAll("tspan").remove();
                         } else {
                             collapsedNodes.add(d.data.id);
-                             vscode.postMessage({
+                            vscode.postMessage({
                                 type: 'getHeadingContent',
                                 nodeId: d.data.id
                             });
@@ -228,35 +276,25 @@
                     input.node().focus();
                 });
 
-            const nodePadding = 10;
-            node.append("text")
-                .attr("dy", ".35em")
-                .attr("text-anchor", "middle")
-                .text(d => d.data.label.length > 20 ? d.data.label.substring(0, 20) + "..." : d.data.label)
-                .each(function (d) {
-                    const bbox = this.getBBox();
-                    d.bbox = bbox;
+            const circleRadius = 6;
+            node.append("circle")
+                .attr("r", circleRadius)
+                .attr("fill", d => {
+                    if (d.depth === 0) return "#1f2937";
+                    return collapsedNodes.has(d.data.id) ? "#374151" : colorFor(d);
                 });
 
-            node.insert("rect", "text")
-                .attr("x", d => d.bbox.x - nodePadding)
-                .attr("y", d => d.bbox.y - nodePadding)
-                .attr("width", d => d.bbox.width + 2 * nodePadding)
-                .attr("height", d => d.bbox.height + 2 * nodePadding)
-                .attr("rx", 5)
-                .attr("ry", 5)
-                .style("fill", d => {
-                    if (collapsedNodes.has(d.data.id)) return "#ccc";
-                    return `hsl(${d.data.level * 60}, 70%, 50%)`;
-                });
+            node.append("text")
+                .attr("dy", -circleRadius - 6)
+                .attr("text-anchor", "middle")
+                .text(d => d.data.label.length > 20 ? d.data.label.substring(0, 20) + "..." : d.data.label);
 
             node.filter(d => d.data.tags && d.data.tags.length > 0)
                 .append("text")
-                .attr("dy", "1.5em")
-                .attr("x", d => d.children ? -13 : 13)
-                .style("text-anchor", d => d.children ? "end" : "start")
+                .attr("dy", circleRadius + 10)
+                .attr("text-anchor", "middle")
                 .style("font-size", "10px")
-                .style("fill", "#888")
+                .style("fill", "#a0aec0")
                 .text(d => d.data.tags.join(', '));
         };
 

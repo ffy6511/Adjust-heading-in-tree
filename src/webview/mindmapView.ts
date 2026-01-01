@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import { HeadingProvider } from "../providers/headingProvider";
 import { TagIndexService } from "../services/tagIndexService";
 import { ViewStateService } from "../services/viewStateService";
@@ -123,6 +124,9 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
         type: "update",
         headings: headingsWithTags,
         expandedNodes: this._viewStateService.getExpandedNodes(),
+        docTitle: activeEditor
+          ? path.basename(activeEditor.document.uri.fsPath)
+          : "Mind Map",
       });
     }
   }
@@ -189,6 +193,7 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div class="toolbar">
+        <button id="back-to-toc">Back to TOC</button>
         <button id="reset-view">Reset View</button>
         <button id="fit-to-window">Fit to Window</button>
         <button id="export-png">Export as PNG</button>
