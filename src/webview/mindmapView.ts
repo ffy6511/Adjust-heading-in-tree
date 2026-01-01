@@ -79,6 +79,9 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
             }
           }
           break;
+        case "setExpandedState":
+          this._viewStateService.setExpanded(data.nodeId, data.expanded);
+          break;
         case "toggleMindmapView":
             vscode.commands.executeCommand("headingNavigator.toggleMindmapView");
             break;

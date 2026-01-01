@@ -245,8 +245,18 @@
                         if (collapsedNodes.has(d.data.id)) {
                             collapsedNodes.delete(d.data.id);
                             d3.select(this).select("text").selectAll("tspan").remove();
+                            vscode.postMessage({
+                                type: 'setExpandedState',
+                                nodeId: d.data.id,
+                                expanded: true
+                            });
                         } else {
                             collapsedNodes.add(d.data.id);
+                            vscode.postMessage({
+                                type: 'setExpandedState',
+                                nodeId: d.data.id,
+                                expanded: false
+                            });
                         }
                         rebuildLayout();
                         render();
