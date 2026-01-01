@@ -5,7 +5,14 @@
     let dataRoot;
     let currentTransform = d3.zoomIdentity;
     let collapsedNodes = new Set();
+    let pendingCenterNodeId = null; // 记录需要保持视角居中的节点
     const CIRCLE_RADIUS = 4;
+    // 居中动画参数：时间（毫秒）和是否沿用当前缩放比例（改为默认无动画且不继承缩放）
+    const CENTER_ANIMATION_MS = 0;
+    const CENTER_KEEP_CURRENT_SCALE = false;
+    // 视角对齐屏幕位置：x 为屏幕宽度的 1/4，y 为屏幕高度的 1/3（布局从左上到右下）
+    const CENTER_TARGET_X_RATIO = 0.25;
+    const CENTER_TARGET_Y_RATIO = 1 / 3;
 
     window.addEventListener("message", (event) => {
         const message = event.data;
@@ -122,55 +129,58 @@
             const layoutRoot = cloneForLayout(dataRoot);
             root = d3.hierarchy(layoutRoot);
 
-            const tree = d3.tree()
-                .nodeSize([48, 160])
-                .separation(() => 1)
-                .size([height, width - 200]);
-            tree(root);
+            // 自定义布局：子节点从父节点的右侧开始垂直堆叠，展开时为子树预留空间
+            const verticalSpacing = 32;
+            const horizontalSpacing = 80;
 
-            // 按层基于标签/内容包围盒防重叠
-            const layers = d3.group(root.descendants(), d => d.depth);
-            layers.forEach((nodes) => {
-                nodes.sort((a, b) => a.x - b.x);
-                let lastBottom = -Infinity;
-                nodes.forEach((node) => {
-                    let bounds = measureBounds(node);
-                    if (bounds.top < lastBottom + paddingBetweenLabels) {
-                        const shift = (lastBottom + paddingBetweenLabels) - bounds.top;
-                        node.x += shift;
-                        bounds = measureBounds(node);
-                    }
-                    lastBottom = bounds.bottom;
-                });
-            });
-
-            // 额外的跨层碰撞处理，避免不同 depth 间标签互相覆盖
-            const allNodes = root.descendants().slice().sort((a, b) => a.x - b.x);
-            for (let i = 0; i < allNodes.length; i++) {
-                const a = allNodes[i];
-                const boxA = measureBounds(a);
-                for (let j = i + 1; j < allNodes.length; j++) {
-                    const b = allNodes[j];
-                    let boxB = measureBounds(b);
-                    // 如果在垂直方向已经间隔很大，可以提前结束内循环
-                    if (boxB.top > boxA.bottom + paddingBetweenLabels) {
-                        break;
-                    }
-                    // 仅在水平方向有交叉时才考虑
-                    const horizontalOverlap = !(boxA.right + paddingBetweenLabels < boxB.left || boxB.right + paddingBetweenLabels < boxA.left);
-                    if (!horizontalOverlap) {
-                        continue;
-                    }
-                    if (boxA.bottom + paddingBetweenLabels > boxB.top) {
-                        const shift = (boxA.bottom + paddingBetweenLabels) - boxB.top;
-                        b.x += shift;
-                        boxB = measureBounds(b);
-                    }
+            const computeSubtreeHeight = (node) => {
+                const kids = node.children || [];
+                if (kids.length === 0) {
+                    node._subtreeHeight = verticalSpacing;
+                    return node._subtreeHeight;
                 }
-            }
+                let total = 0;
+                kids.forEach((child, idx) => {
+                    const h = computeSubtreeHeight(child);
+                    total += h;
+                    if (idx < kids.length - 1) {
+                        total += paddingBetweenLabels;
+                    }
+                });
+                node._subtreeHeight = Math.max(verticalSpacing, total);
+                return node._subtreeHeight;
+            };
+
+            const assignPositions = (node, depth, startY) => {
+                const nodeHeight = node._subtreeHeight || verticalSpacing;
+                node.x = startY + nodeHeight / 2;
+                node.y = depth * horizontalSpacing;
+                const kids = node.children || [];
+                if (kids.length === 0) {
+                    return;
+                }
+
+                const firstHeight = kids[0]._subtreeHeight || verticalSpacing;
+                // 让首个子节点的中心与父节点在同一水平线上，其他子节点沿垂直方向向下堆叠
+                let cursor = node.x - firstHeight / 2;
+                kids.forEach((child, idx) => {
+                    assignPositions(child, depth + 1, cursor);
+                    cursor += (child._subtreeHeight || verticalSpacing) + (idx < kids.length - 1 ? paddingBetweenLabels : 0);
+                });
+            };
+
+            computeSubtreeHeight(root);
+            assignPositions(root, 0, 0);
         };
 
+        const prevRootX = root?.x ?? null;
         rebuildLayout();
+        const newRootX = root?.x ?? null;
+        if (prevRootX !== null && newRootX !== null) {
+            const deltaY = prevRootX - newRootX;
+            // 保持视角稳定：布局重算后，按差值平移 transform，避免展开/收起导致视图跳动
+            currentTransform = currentTransform.translate(0, deltaY);
+        }
 
         const searchBar = document.getElementById("search-bar");
         if (searchBar) {
@@ -246,6 +256,32 @@
             };
         }
 
+        const centerOnNode = (target) => {
+            if (!target || !zoom) return;
+            const scale = CENTER_KEEP_CURRENT_SCALE ? currentTransform.k : 1;
+            const targetScreenX = width * CENTER_TARGET_X_RATIO;
+            const targetScreenY = height * CENTER_TARGET_Y_RATIO;
+            const tx = targetScreenX - target.y * scale;
+            const ty = targetScreenY - target.x * scale;
+            const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
+            currentTransform = t;
+            const sel = d3.select("#mindmap");
+            if (CENTER_ANIMATION_MS > 0) {
+                sel.transition().duration(CENTER_ANIMATION_MS).call(zoom.transform, t);
+            } else {
+                sel.call(zoom.transform, t);
+            }
+        };
+
+        const centerOnPending = () => {
+            if (!pendingCenterNodeId) return;
+            const target = root?.descendants().find(n => n.data.id === pendingCenterNodeId);
+            if (target) {
+                centerOnNode(target);
+            }
+            pendingCenterNodeId = null;
+        };
+
         const render = () => {
             d3.select("#mindmap").selectAll("*").remove();
 
@@ -304,6 +340,7 @@
                 .attr("data-id", d => d.data.id)
                 .on("click", function(event, d) {
                     const hasChildren = (d.data._children && d.data._children.length > 0);
+                    pendingCenterNodeId = d.data.id;
                     if (hasChildren) {
                         if (collapsedNodes.has(d.data.id)) {
                             collapsedNodes.delete(d.data.id);
@@ -323,11 +360,13 @@
                         }
                         rebuildLayout();
                         render();
+                        centerOnPending();
                     } else {
                         vscode.postMessage({
                             type: 'revealHeading',
                             range: d.data.range
                         });
+                        centerOnPending();
                     }
                 })
                 .on("dblclick", function () {
