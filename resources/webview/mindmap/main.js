@@ -5,7 +5,7 @@
         const message = event.data;
         switch (message.type) {
             case "update":
-                updateMindmap(message.headings);
+                updateMindmap(message.headings, message.expandedNodes);
                 break;
             case "headingContent":
                 {
@@ -23,15 +23,34 @@
     });
 
     let root;
-    const collapsedNodes = new Set();
+    let collapsedNodes = new Set();
 
-    function updateMindmap(headings) {
+    function updateMindmap(headings, expandedNodes) {
         if (!headings || headings.length === 0) {
             d3.select("#mindmap").selectAll("*").remove();
             return;
         }
 
-        root = d3.hierarchy(headings[0]);
+        const allNodeIds = new Set();
+        function collectIds(node) {
+            allNodeIds.add(node.id);
+            if (node.children) {
+                node.children.forEach(collectIds);
+            }
+        }
+        headings.forEach(collectIds);
+
+        const expandedNodeSet = new Set(expandedNodes);
+        collapsedNodes = new Set([...allNodeIds].filter(id => !expandedNodeSet.has(id)));
+
+        if (headings.length > 1) {
+            root = d3.hierarchy({
+                label: "Root",
+                children: headings,
+            });
+        } else {
+            root = d3.hierarchy(headings[0]);
+        }
         const width = window.innerWidth;
         const height = window.innerHeight;
 
@@ -82,6 +101,13 @@
             d3.select("#mindmap").transition().duration(750).call(zoom.transform, t);
         });
 
+        const backButton = document.getElementById("back-to-toc");
+        backButton.addEventListener("click", () => {
+            vscode.postMessage({
+                type: 'toggleMindmapView'
+            });
+        });
+
         const exportPngButton = document.getElementById("export-png");
         exportPngButton.addEventListener("click", () => {
             const svg = d3.select("#mindmap").node();
@@ -119,7 +145,10 @@
                 return d.data.tags && d.data.tags.some(t => t.toLowerCase().includes(filterText));
             });
 
-            const visibleNodes = filteredNodes.filter(d => !d.ancestors().some(a => collapsedNodes.has(a.data.id)));
+            let visibleNodes = filteredNodes.filter(d => !d.ancestors().some(a => collapsedNodes.has(a.data.id)));
+            if (headings.length > 1) {
+                visibleNodes = visibleNodes.filter(d => d.depth > 0);
+            }
             const visibleLinks = root.links().filter(l => visibleNodes.includes(l.source) && visibleNodes.includes(l.target));
 
             const svg = d3.select("#mindmap")
@@ -140,7 +169,7 @@
                 .attr("class", d => d.data.tags && d.data.tags.length > 0 ? "node has-tags" : "node")
                 .attr("transform", d => `translate(${d.y},${d.x})`)
                 .attr("data-id", d => d.data.id)
-                .on("click", (event, d) => {
+                .on("click", function(event, d) {
                     if (d.children) {
                         if (collapsedNodes.has(d.data.id)) {
                             collapsedNodes.delete(d.data.id);
@@ -199,18 +228,27 @@
                     input.node().focus();
                 });
 
-            node.append("circle")
-                .attr("r", 10)
+            const nodePadding = 10;
+            node.append("text")
+                .attr("dy", ".35em")
+                .attr("text-anchor", "middle")
+                .text(d => d.data.label.length > 20 ? d.data.label.substring(0, 20) + "..." : d.data.label)
+                .each(function (d) {
+                    const bbox = this.getBBox();
+                    d.bbox = bbox;
+                });
+
+            node.insert("rect", "text")
+                .attr("x", d => d.bbox.x - nodePadding)
+                .attr("y", d => d.bbox.y - nodePadding)
+                .attr("width", d => d.bbox.width + 2 * nodePadding)
+                .attr("height", d => d.bbox.height + 2 * nodePadding)
+                .attr("rx", 5)
+                .attr("ry", 5)
                 .style("fill", d => {
                     if (collapsedNodes.has(d.data.id)) return "#ccc";
                     return `hsl(${d.data.level * 60}, 70%, 50%)`;
                 });
-
-            node.append("text")
-                .attr("dy", ".35em")
-                .attr("x", d => d.children ? -13 : 13)
-                .style("text-anchor", d => d.children ? "end" : "start")
-                .text(d => d.data.label);
 
             node.filter(d => d.data.tags && d.data.tags.length > 0)
                 .append("text")

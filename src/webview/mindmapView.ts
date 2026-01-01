@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { HeadingProvider } from "../providers/headingProvider";
 import { TagIndexService } from "../services/tagIndexService";
+import { ViewStateService } from "../services/viewStateService";
 
 export class MindmapViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "headingNavigator.mindmapView";
@@ -10,7 +11,8 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _headingProvider: HeadingProvider,
-    private readonly _tagService: TagIndexService
+    private readonly _tagService: TagIndexService,
+    private readonly _viewStateService: ViewStateService
   ) {
     this._headingProvider.onDidChangeTreeData(() => {
       this.updateView();
@@ -76,6 +78,9 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
             }
           }
           break;
+        case "toggleMindmapView":
+            vscode.commands.executeCommand("headingNavigator.toggleMindmapView");
+            break;
       }
     });
 
@@ -117,6 +122,7 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
       this._view.webview.postMessage({
         type: "update",
         headings: headingsWithTags,
+        expandedNodes: this._viewStateService.getExpandedNodes(),
       });
     }
   }

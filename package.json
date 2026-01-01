@@ -71,7 +71,8 @@
       "headingNavigator": [
         {
           "id": "headingNavigator.headingTree",
-          "name": "TOC View"
+          "name": "TOC View",
+          "when": "!headingNavigator.mindmapActive"
         },
         {
           "id": "headingNavigator.tagView",
@@ -87,7 +88,8 @@
         {
           "id": "headingNavigator.mindmapView",
           "name": "Mind Map View",
-          "type": "webview"
+          "type": "webview",
+          "when": "headingNavigator.mindmapActive"
         }
       ]
     },
@@ -197,6 +199,11 @@
         "command": "headingNavigator.manageTagDefinitions",
         "title": "Manage Tags",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "headingNavigator.toggleMindmapView",
+        "title": "Toggle Mind Map View",
+        "icon": "$(symbol-class)"
       }
     ],
     "keybindings": [
@@ -264,6 +271,11 @@
           "command": "headingNavigator.openHoverSettings",
           "when": "view == headingNavigator.headingTree",
           "group": "navigation@4"
+        },
+        {
+          "command": "headingNavigator.toggleMindmapView",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@5"
         },
         {
           "command": "headingNavigator.showTagViewHelp",

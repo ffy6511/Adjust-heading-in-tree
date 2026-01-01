@@ -51,13 +51,12 @@ button:hover {
   cursor: pointer;
 }
 
-.node circle {
-  fill: var(--vscode-editor-foreground);
+.node rect {
   stroke: var(--vscode-editor-background);
   stroke-width: 1.5px;
 }
 
-.node.has-tags circle {
+.node.has-tags rect {
     stroke: var(--vscode-list-highlightForeground);
     stroke-width: 3px;
 }
