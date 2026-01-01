@@ -1,6 +1,14 @@
 (function () {
     const vscode = acquireVsCodeApi();
 
+    let root;
+    let dataRoot;
+    let currentTransform = d3.zoomIdentity;
+    let collapsedNodes = new Set();
+    let renderView = () => {};
+    const contentCache = new Map();
+    const visibleLeafContent = new Set();
+
     window.addEventListener("message", (event) => {
         const message = event.data;
         switch (message.type) {
@@ -8,22 +16,11 @@
                 updateMindmap(message.headings, message.expandedNodes, message.docTitle);
                 break;
             case "headingContent":
-                {
-                    const node = d3.select(`g[data-id="${message.nodeId}"]`);
-                    if (node) {
-                        node.select("text")
-                            .append("tspan")
-                            .attr("x", 15)
-                            .attr("dy", "1.2em")
-                            .text(message.content);
-                    }
-                }
+                contentCache.set(message.nodeId, message.content ?? "");
+                renderView();
                 break;
         }
     });
-
-    let root;
-    let collapsedNodes = new Set();
 
     function updateMindmap(headings, expandedNodes, docTitle) {
         if (!headings || headings.length === 0) {
@@ -37,18 +34,15 @@
             level: 0,
             children: headings,
         };
-        root = d3.hierarchy(virtualRoot);
+        dataRoot = virtualRoot;
 
         const allNodeIds = new Set();
         const nodeById = new Map();
-        function collectIds(node) {
+        (function collect(node) {
             allNodeIds.add(node.id);
             nodeById.set(node.id, node);
-            if (node.children) {
-                node.children.forEach(collectIds);
-            }
-        }
-        collectIds(virtualRoot);
+            (node.children || []).forEach(collect);
+        })(virtualRoot);
 
         const expandedNodeSet = new Set(expandedNodes);
         collapsedNodes = new Set(
@@ -64,35 +58,51 @@
         const height = window.innerHeight;
 
         const labelWidth = d => Math.min((d.data.label || "").length, 20) * 7;
-        const minRowGap = d => 10 + labelWidth(d) / 3;
+        const minRowGap = d => 28 + labelWidth(d) / 3;
 
-        const tree = d3.tree()
-            .nodeSize([48, 160])
-            .separation((a, b) => {
-                const base = a.parent === b.parent ? 1 : 1.2;
-                const span = Math.max(labelWidth(a), labelWidth(b));
-                return base + span / 140;
-            })
-            .size([height, width - 200]);
-        tree(root);
+        const rebuildLayout = () => {
+            const cloneForLayout = (node) => {
+                const kids = node.children || [];
+                const clonedChildren = kids.map(cloneForLayout);
+                return {
+                    ...node,
+                    _children: clonedChildren,
+                    children: collapsedNodes.has(node.id) ? [] : clonedChildren,
+                };
+            };
+            const layoutRoot = cloneForLayout(dataRoot);
+            root = d3.hierarchy(layoutRoot);
 
-        // 简单纵向防重叠：同一深度按 x 排序并拉开最小间距
-        const layers = d3.group(root.descendants(), d => d.depth);
-        layers.forEach((nodes) => {
-            nodes.sort((a, b) => a.x - b.x);
-            let lastX = -Infinity;
-            nodes.forEach((node, idx) => {
-                if (idx === 0) {
+            const tree = d3.tree()
+                .nodeSize([64, 160])
+                .separation((a, b) => {
+                    const base = a.parent === b.parent ? 1 : 1.2;
+                    const span = Math.max(labelWidth(a), labelWidth(b));
+                    return base + span / 140;
+                })
+                .size([height, width - 200]);
+            tree(root);
+
+            // 简单纵向防重叠：同一深度按 x 排序并拉开最小间距
+            const layers = d3.group(root.descendants(), d => d.depth);
+            layers.forEach((nodes) => {
+                nodes.sort((a, b) => a.x - b.x);
+                let lastX = -Infinity;
+                nodes.forEach((node, idx) => {
+                    if (idx === 0) {
+                        lastX = node.x;
+                        return;
+                    }
+                    const gap = Math.max(minRowGap(node), minRowGap(nodes[idx - 1]));
+                    if (node.x - lastX < gap) {
+                        node.x = lastX + gap;
+                    }
                     lastX = node.x;
-                    return;
-                }
-                const gap = Math.max(minRowGap(node), minRowGap(nodes[idx - 1]));
-                if (node.x - lastX < gap) {
-                    node.x = lastX + gap;
-                }
-                lastX = node.x;
+                });
             });
-        });
+        };
+
+        rebuildLayout();
 
         const searchBar = document.getElementById("search-bar");
         if (searchBar) {
@@ -185,9 +195,11 @@
 
             const svg = d3.select("#mindmap")
                 .attr("width", width)
-                .attr("height", height)
-                .append("g")
-                .attr("transform", "translate(100,0)");
+                .attr("height", height);
+
+            const canvas = svg.append("g")
+                .attr("class", "canvas")
+                .attr("transform", currentTransform.translate(100, 0));
 
             const palette = [
                 "#4dd0e1",
@@ -204,38 +216,52 @@
                 const idx = (d.data.level ?? d.depth) % palette.length;
                 return palette[idx];
             };
+            const nodeFill = d => {
+                if (d.depth === 0) return "#1f2937";
+                return collapsedNodes.has(d.data.id) ? "#374151" : colorFor(d);
+            };
 
-            svg.selectAll(".link")
+            canvas.selectAll(".link")
                 .data(visibleLinks)
                 .enter().append("path")
                 .attr("class", "link")
                 .attr("stroke", d => colorFor(d.target))
                 .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
 
-            const node = svg.selectAll(".node")
+            const node = canvas.selectAll(".node")
                 .data(visibleNodes)
                 .enter().append("g")
                 .attr("class", d => d.data.tags && d.data.tags.length > 0 ? "node has-tags" : "node")
                 .attr("transform", d => `translate(${d.y},${d.x})`)
                 .attr("data-id", d => d.data.id)
                 .on("click", function(event, d) {
-                    if (d.children) {
+                    const hasChildren = (d.data._children && d.data._children.length > 0);
+                    if (hasChildren) {
                         if (collapsedNodes.has(d.data.id)) {
                             collapsedNodes.delete(d.data.id);
                             d3.select(this).select("text").selectAll("tspan").remove();
                         } else {
                             collapsedNodes.add(d.data.id);
-                            vscode.postMessage({
-                                type: 'getHeadingContent',
-                                nodeId: d.data.id
-                            });
                         }
+                        rebuildLayout();
                         render();
                     } else {
+                        if (visibleLeafContent.has(d.data.id)) {
+                            visibleLeafContent.delete(d.data.id);
+                        } else {
+                            visibleLeafContent.add(d.data.id);
+                            if (!contentCache.has(d.data.id)) {
+                                vscode.postMessage({
+                                    type: 'getHeadingContent',
+                                    nodeId: d.data.id
+                                });
+                            }
+                        }
                         vscode.postMessage({
                             type: 'revealHeading',
                             range: d.data.range
                         });
+                        render();
                     }
                 })
                 .on("dblclick", function (event, d) {
@@ -279,10 +305,16 @@
             const circleRadius = 6;
             node.append("circle")
                 .attr("r", circleRadius)
-                .attr("fill", d => {
-                    if (d.depth === 0) return "#1f2937";
-                    return collapsedNodes.has(d.data.id) ? "#374151" : colorFor(d);
-                });
+                .attr("fill", d => nodeFill(d));
+
+            node.filter(d => d.data._children && d.data._children.length > 0 && collapsedNodes.has(d.data.id))
+                .append("text")
+                .attr("class", "node-plus")
+                .attr("x", circleRadius + 4)
+                .attr("dy", 4)
+                .attr("text-anchor", "middle")
+                .text("+")
+                .attr("fill", d => nodeFill(d));
 
             node.append("text")
                 .attr("dy", -circleRadius - 6)
@@ -296,14 +328,51 @@
                 .style("font-size", "10px")
                 .style("fill", "#a0aec0")
                 .text(d => d.data.tags.join(', '));
+
+            const leafNodesWithContent = node.filter(d => !d.data._children || d.data._children.length === 0)
+                .filter(d => visibleLeafContent.has(d.data.id) && contentCache.has(d.data.id));
+
+            leafNodesWithContent.append("g")
+                .attr("class", "leaf-content")
+                .each(function (d) {
+                    const g = d3.select(this);
+                    const content = contentCache.get(d.data.id) || "";
+                    const limited = content.slice(0, 160);
+                    const padding = 10;
+                    const textWidth = Math.min(Math.max(limited.length * 6, 80), 260);
+                    const rectWidth = textWidth + padding * 2;
+                    const rectHeight = 40;
+                    const yOffset = circleRadius + 14;
+
+                    g.append("rect")
+                        .attr("x", -rectWidth / 2)
+                        .attr("y", yOffset)
+                        .attr("rx", 8)
+                        .attr("ry", 8)
+                        .attr("width", rectWidth)
+                        .attr("height", rectHeight)
+                        .attr("fill", "#111827")
+                        .attr("stroke", colorFor(d))
+                        .attr("stroke-width", 1.5);
+
+                    g.append("text")
+                        .attr("x", 0)
+                        .attr("y", yOffset + rectHeight / 2 + 4)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "11px")
+                        .style("fill", "#e5e7eb")
+                        .text(limited);
+                });
         };
 
         const zoom = d3.zoom().on("zoom", (event) => {
-            d3.select("#mindmap g").attr("transform", event.transform);
+            currentTransform = event.transform;
+            d3.select("#mindmap .canvas").attr("transform", event.transform.translate(100, 0));
         });
 
-        d3.select("#mindmap").call(zoom);
+        d3.select("#mindmap").call(zoom).call(zoom.transform, currentTransform);
 
+        renderView = render;
         render();
     }
 })();
