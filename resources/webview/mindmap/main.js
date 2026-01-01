@@ -16,6 +16,8 @@
         }
     });
 
+    vscode.postMessage({ type: "mindmapReady" });
+
     function updateMindmap(headings, expandedNodes, docTitle) {
         if (!headings || headings.length === 0) {
             d3.select("#mindmap").selectAll("*").remove();

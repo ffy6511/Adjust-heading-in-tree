@@ -4,10 +4,19 @@ import { HeadingProvider } from "../providers/headingProvider";
 import { TagIndexService } from "../services/tagIndexService";
 import { ViewStateService } from "../services/viewStateService";
 
+interface MindmapUpdatePayload {
+  type: "update";
+  headings: any[];
+  expandedNodes: string[];
+  docTitle: string;
+}
+
 export class MindmapViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "headingNavigator.mindmapView";
 
   private _view?: vscode.WebviewView;
+  private _webviewReady = false;
+  private _pendingUpdate: MindmapUpdatePayload | null = null;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -29,6 +38,12 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
     _token: vscode.CancellationToken
   ) {
     this._view = webviewView;
+    this._webviewReady = false;
+
+    webviewView.onDidDispose(() => {
+      this._view = undefined;
+      this._webviewReady = false;
+    });
 
     webviewView.webview.options = {
       enableScripts: true,
@@ -119,6 +134,10 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
         case "toggleMindmapView":
             vscode.commands.executeCommand("headingNavigator.toggleMindmapView");
             break;
+        case "mindmapReady":
+          this._webviewReady = true;
+          this.flushPendingUpdate();
+          break;
       }
     });
 
@@ -127,15 +146,36 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
   }
 
   private updateView() {
-    if (!this._view) {
+    this._pendingUpdate = this.buildUpdatePayload();
+    this.flushPendingUpdate();
+  }
+
+  private flushPendingUpdate() {
+    if (!this._view || !this._webviewReady || !this._pendingUpdate) {
       return;
     }
 
+    this._view.webview.postMessage(this._pendingUpdate);
+    this._pendingUpdate = null;
+  }
+
+  private buildUpdatePayload(): MindmapUpdatePayload {
     const headings = this._headingProvider.getRootNodes();
     const activeEditor = vscode.window.activeTextEditor;
-    const tagsInFile = activeEditor
-      ? this._tagService.getTagsForFile(activeEditor.document.uri)
-      : [];
+    const activeUri = activeEditor?.document.uri;
+
+    const tagsByLine = new Map<number, string[]>();
+    if (activeEditor && activeUri) {
+      const tagsInFile = this._tagService.getTagsForFile(activeUri);
+      for (const tag of tagsInFile) {
+        const blocks = this._tagService.getBlocksForFile(activeUri, tag);
+        for (const block of blocks) {
+          const existing = tagsByLine.get(block.line) ?? [];
+          existing.push(tag);
+          tagsByLine.set(block.line, existing);
+        }
+      }
+    }
 
     const serializeRange = (range: vscode.Range | undefined) => {
       if (!range) {
@@ -148,39 +188,25 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
     };
 
     const annotateTags = (heading: any): any => {
-      const tags: string[] = [];
-      if (activeEditor) {
-        for (const tag of tagsInFile) {
-          const blocks = this._tagService.getBlocksForFile(
-            activeEditor.document.uri,
-            tag
-          );
-          if (blocks.some((b) => b.line === heading.range.start.line)) {
-            tags.push(tag);
-          }
-        }
-      }
       const children = heading.children?.map((child: any) => annotateTags(child)) ?? [];
       return {
         ...heading,
         range: serializeRange(heading.range),
-        tags,
+        tags: tagsByLine.get(heading.range.start.line) ?? [],
         children,
       };
     };
 
     const headingsWithTags = headings.map((heading) => annotateTags(heading));
 
-    if (this._view) {
-      this._view.webview.postMessage({
-        type: "update",
-        headings: headingsWithTags,
-        expandedNodes: this._viewStateService.getExpandedNodes(),
-        docTitle: activeEditor
-          ? path.basename(activeEditor.document.uri.fsPath)
-          : "Mind Map",
-      });
-    }
+    return {
+      type: "update",
+      headings: headingsWithTags,
+      expandedNodes: this._viewStateService.getExpandedNodes(),
+      docTitle: activeUri
+        ? path.basename(activeUri.fsPath)
+        : "Mind Map",
+    };
   }
 
   private getHeadingContent(nodeId: string): string {
