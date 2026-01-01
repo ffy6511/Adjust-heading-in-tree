@@ -361,14 +361,17 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("headingNavigator.toggleMindmapView", () => {
-      mindmapActive = !mindmapActive;
-      vscode.commands.executeCommand(
-        "setContext",
-        "headingNavigator.mindmapActive",
-        mindmapActive
-      );
-    })
+    vscode.commands.registerCommand(
+      "headingNavigator.toggleMindmapView",
+      () => {
+        mindmapActive = !mindmapActive;
+        vscode.commands.executeCommand(
+          "setContext",
+          "headingNavigator.mindmapActive",
+          mindmapActive
+        );
+      }
+    )
   );
 
   context.subscriptions.push(
@@ -398,14 +401,34 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const revealDisposable = vscode.commands.registerCommand(
     "headingNavigator.reveal",
-    (range: vscode.Range) => {
+    async (range: vscode.Range) => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;
       }
 
-      editor.selection = new vscode.Selection(range.start, range.start);
-      editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+      const endPos = range.end;
+      const targetSelection = new vscode.Selection(endPos, endPos);
+
+      const shownEditor = await vscode.window.showTextDocument(
+        editor.document,
+        {
+          selection: targetSelection,
+          preserveFocus: false,
+          viewColumn: editor.viewColumn,
+        }
+      );
+
+      shownEditor.revealRange(
+        new vscode.Range(endPos, endPos),
+        vscode.TextEditorRevealType.InCenterIfOutsideViewport
+      );
+      // 通过键盘命令, 模拟用户点击
+      await vscode.commands.executeCommand("cursorMove", {
+        to: "left",
+        by: "character",
+        value: 1,
+      });
     }
   );
 
