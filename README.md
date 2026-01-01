@@ -3,6 +3,10 @@
 <div align="center">
   <img src="./resources/icons/logo.png" alt="logo" width="100">
 </div>
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=ffy6511.adjust-heading-in-tree)
+[![Version](https://img.shields.io/visual-studio-marketplace/v/ffy6511.adjust-heading-in-tree)](https://marketplace.visualstudio.com/items?itemName=ffy6511.adjust-heading-in-tree)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/ffy6511.adjust-heading-in-tree)](https://marketplace.visualstudio.com/items?itemName=ffy6511.adjust-heading-in-tree)
+[![License](https://img.shields.io/github/license/ffy6511/Adjust-heading-in-tree)](./LICENSE)
 
 Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩展，提供导航树、拖拽重排、批量层级调整与块级标签机制，帮助你像操作“块”一样管理整段内容。
 
