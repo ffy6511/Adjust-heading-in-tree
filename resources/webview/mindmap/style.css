@@ -53,7 +53,7 @@ button:hover {
 
 .node.has-tags circle {
   stroke: var(--vscode-list-highlightForeground, #7aa2f7);
-  stroke-width: 3px;
+  stroke-width: 2px;
 }
 
 .node:hover circle {

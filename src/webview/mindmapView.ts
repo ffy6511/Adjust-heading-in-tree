@@ -100,8 +100,8 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
       ? this._tagService.getTagsForFile(activeEditor.document.uri)
       : [];
 
-    const headingsWithTags = headings.map((heading) => {
-      const tags = [];
+    const annotateTags = (heading: any): any => {
+      const tags: string[] = [];
       if (activeEditor) {
         for (const tag of tagsInFile) {
           const blocks = this._tagService.getBlocksForFile(
@@ -113,11 +113,15 @@ export class MindmapViewProvider implements vscode.WebviewViewProvider {
           }
         }
       }
+      const children = heading.children?.map((child: any) => annotateTags(child)) ?? [];
       return {
         ...heading,
-        tags: tags,
+        tags,
+        children,
       };
-    });
+    };
+
+    const headingsWithTags = headings.map((heading) => annotateTags(heading));
 
     if (this._view) {
       this._view.webview.postMessage({

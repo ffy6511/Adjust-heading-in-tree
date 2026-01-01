@@ -8,6 +8,7 @@
     let renderView = () => {};
     const contentCache = new Map();
     const visibleLeafContent = new Set();
+    const CIRCLE_RADIUS = 6;
 
     window.addEventListener("message", (event) => {
         const message = event.data;
@@ -58,7 +59,17 @@
         const height = window.innerHeight;
 
         const labelWidth = d => Math.min((d.data.label || "").length, 20) * 7;
-        const minRowGap = d => 28 + labelWidth(d) / 3;
+        const labelHeight = 10;
+        const tagHeight = 12;
+        const paddingBetweenLabels = 4;
+
+        const measureBounds = (node) => {
+            const hasTags = node.data.tags && node.data.tags.length > 0;
+            const hasContent = visibleLeafContent.has(node.data.id);
+            const top = node.x - (CIRCLE_RADIUS + 6 + labelHeight);
+            const bottom = node.x + CIRCLE_RADIUS + 10 + (hasTags ? tagHeight : 0) + (hasContent ? 50 : 0);
+            return { top, bottom };
+        };
 
         const rebuildLayout = () => {
             const cloneForLayout = (node) => {
@@ -75,29 +86,23 @@
 
             const tree = d3.tree()
                 .nodeSize([64, 160])
-                .separation((a, b) => {
-                    const base = a.parent === b.parent ? 1 : 1.2;
-                    const span = Math.max(labelWidth(a), labelWidth(b));
-                    return base + span / 140;
-                })
+                .separation(() => 1)
                 .size([height, width - 200]);
             tree(root);
 
-            // 简单纵向防重叠：同一深度按 x 排序并拉开最小间距
+            // 按层基于标签/内容包围盒防重叠
             const layers = d3.group(root.descendants(), d => d.depth);
             layers.forEach((nodes) => {
                 nodes.sort((a, b) => a.x - b.x);
-                let lastX = -Infinity;
-                nodes.forEach((node, idx) => {
-                    if (idx === 0) {
-                        lastX = node.x;
-                        return;
+                let lastBottom = -Infinity;
+                nodes.forEach((node) => {
+                    let bounds = measureBounds(node);
+                    if (bounds.top < lastBottom + paddingBetweenLabels) {
+                        const shift = (lastBottom + paddingBetweenLabels) - bounds.top;
+                        node.x += shift;
+                        bounds = measureBounds(node);
                     }
-                    const gap = Math.max(minRowGap(node), minRowGap(nodes[idx - 1]));
-                    if (node.x - lastX < gap) {
-                        node.x = lastX + gap;
-                    }
-                    lastX = node.x;
+                    lastBottom = bounds.bottom;
                 });
             });
         };
@@ -302,7 +307,7 @@
                     input.node().focus();
                 });
 
-            const circleRadius = 6;
+            const circleRadius = CIRCLE_RADIUS;
             node.append("circle")
                 .attr("r", circleRadius)
                 .attr("fill", d => nodeFill(d));
@@ -323,7 +328,7 @@
 
             node.filter(d => d.data.tags && d.data.tags.length > 0)
                 .append("text")
-                .attr("dy", circleRadius + 10)
+                .attr("dy", circleRadius + 12)
                 .attr("text-anchor", "middle")
                 .style("font-size", "10px")
                 .style("fill", "#a0aec0")
