@@ -3,6 +3,7 @@
 <div align="center">
   <img src="./resources/icons/logo.png" alt="logo" width="100">
 </div>
+
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=ffy6511.adjust-heading-in-tree)
 [![Version](https://img.shields.io/visual-studio-marketplace/v/ffy6511.adjust-heading-in-tree)](https://marketplace.visualstudio.com/items?itemName=ffy6511.adjust-heading-in-tree)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/ffy6511.adjust-heading-in-tree)](https://marketplace.visualstudio.com/items?itemName=ffy6511.adjust-heading-in-tree)
