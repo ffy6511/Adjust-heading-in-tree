@@ -343,6 +343,13 @@ function renderBlocks() {
             content.textContent = block.text;
             el.appendChild(content);
 
+            if (block.remark) {
+                const remark = document.createElement('div');
+                remark.className = 'block-remark';
+                remark.textContent = block.remark;
+                el.appendChild(remark);
+            }
+
             if (block.breadcrumb && block.breadcrumb.length > 1) {
                 const trail = block.breadcrumb.slice(0, -1);
                 const breadcrumb = document.createElement('div');

@@ -155,6 +155,12 @@ export class HoverSettingsPanel {
         desc: "Add or remove tags for this heading",
       },
       {
+        id: "editRemark",
+        icon: "comment",
+        label: "Edit Remark",
+        desc: "Add or edit remark for this heading",
+      },
+      {
         id: "deleteHeading",
         icon: "trash",
         label: "Delete Block",

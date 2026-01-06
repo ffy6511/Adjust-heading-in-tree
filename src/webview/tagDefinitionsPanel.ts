@@ -1,6 +1,13 @@
 import * as vscode from "vscode";
 import { TagIndexService, TagDefinition } from "../services/tagIndexService";
 import { COMMON_ICONS } from "../constants/tagIcons";
+import {
+  extractCommentContent,
+  getCommentKindForDocument,
+  normalizeTagsAndRemark,
+  parseCommentContent,
+  updateLineWithComment,
+} from "../utils/tagRemark";
 
 export class TagDefinitionsPanel {
   public static currentPanel: TagDefinitionsPanel | undefined;
@@ -39,6 +46,9 @@ export class TagDefinitionsPanel {
             break;
           case "saveDefinition":
             await this._saveDefinition(message.definition, message.oldName);
+            break;
+          case "saveRemarkDefinition":
+            await this._saveRemarkDefinition(message.definition);
             break;
           case "deleteDefinition":
             await this._deleteDefinition(message.name);
@@ -117,11 +127,14 @@ export class TagDefinitionsPanel {
   }
 
   private async _sendDefinitions() {
+    await this._ensureRemarkDefinition();
     const { defs, unpinned } = await this._enforcePinLimit();
-    const ordered = this._sortDefinitions(defs);
+    const remarkDef = this._getRemarkDefinition();
+    const ordered = this._sortDefinitions(this._filterRemark(defs));
     await this._panel.webview.postMessage({
       type: "definitions",
       data: ordered,
+      remark: remarkDef,
       icons: COMMON_ICONS,
       maxPinnedDisplay: this._getMaxPinnedDisplay(),
     });
@@ -155,6 +168,61 @@ export class TagDefinitionsPanel {
       pinned: !!def.pinned,
       color: def.color ?? this._defaultColor,
     }));
+  }
+
+  private _getRemarkName(): string {
+    return this._tagService.getRemarkName();
+  }
+
+  private _getRemarkDefinition(): TagDefinition {
+    return this._tagService.getRemarkDefinition();
+  }
+
+  private _filterRemark(defs: TagDefinition[]): TagDefinition[] {
+    const remarkName = this._getRemarkName();
+    return defs.filter((def) => def.name !== remarkName);
+  }
+
+  private async _ensureRemarkDefinition(): Promise<void> {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const defs = this._normalizeDefinitions(
+      config.get<TagDefinition[]>("tags.definitions", [])
+    );
+    const remarkDef = this._getRemarkDefinition();
+    const index = defs.findIndex((def) => def.name === remarkDef.name);
+    let changed = false;
+
+    if (index >= 0) {
+      const existing = defs[index];
+      const merged: TagDefinition = {
+        ...existing,
+        name: remarkDef.name,
+        icon: remarkDef.icon ?? existing.icon,
+        color: remarkDef.color ?? existing.color,
+        pinned: true,
+      };
+      const same =
+        existing.name === merged.name &&
+        existing.icon === merged.icon &&
+        existing.color === merged.color &&
+        existing.pinned === merged.pinned;
+      if (!same) {
+        defs[index] = merged;
+        changed = true;
+      }
+    } else {
+      defs.unshift(remarkDef);
+      changed = true;
+    }
+
+    if (changed) {
+      const ordered = this._sortDefinitions(defs);
+      await config.update(
+        "tags.definitions",
+        ordered,
+        vscode.ConfigurationTarget.Global
+      );
+    }
   }
 
   private _countPinned(defs: TagDefinition[]): number {
@@ -275,6 +343,11 @@ export class TagDefinitionsPanel {
       vscode.window.showErrorMessage(validationError);
       return;
     }
+    const remarkName = this._getRemarkName();
+    if (def.name === remarkName || oldName === remarkName) {
+      vscode.window.showErrorMessage("Tag name is reserved for remark.");
+      return;
+    }
 
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
     const userDefs = this._normalizeDefinitions(
@@ -350,6 +423,53 @@ export class TagDefinitionsPanel {
     vscode.window.showInformationMessage(`Tag "${def.name}" saved!`);
   }
 
+  private async _saveRemarkDefinition(def: TagDefinition) {
+    const validationError = this._validateTagName(def.name);
+    if (validationError) {
+      vscode.window.showErrorMessage(validationError);
+      return;
+    }
+
+    const oldName = this._getRemarkName();
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const userDefs = this._normalizeDefinitions(
+      config.get<TagDefinition[]>("tags.definitions", [])
+    );
+    const otherDefs = userDefs.filter((d) => d.name !== oldName);
+    if (otherDefs.some((d) => d.name === def.name)) {
+      vscode.window.showErrorMessage("Tag name is already in use.");
+      return;
+    }
+
+    const existingRemark = userDefs.find((d) => d.name === oldName);
+    const remarkDef: TagDefinition = {
+      name: def.name.trim(),
+      icon: def.icon ?? existingRemark?.icon ?? "comment",
+      color: existingRemark?.color ?? this._defaultColor,
+      pinned: true,
+    };
+
+    const ordered = this._sortDefinitions([remarkDef, ...otherDefs]);
+    await config.update(
+      "tags.definitions",
+      ordered,
+      vscode.ConfigurationTarget.Global
+    );
+    await config.update(
+      "tags.remarkName",
+      remarkDef.name,
+      vscode.ConfigurationTarget.Global
+    );
+
+    if (oldName !== remarkDef.name) {
+      await this._renameTagInFiles(oldName, remarkDef.name);
+    }
+
+    this._tagService.scanWorkspace();
+    await this._sendDefinitions();
+    vscode.window.showInformationMessage("Remark tag updated.");
+  }
+
   private async _deleteDefinition(name: string) {
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
     const userDefs = config.get<TagDefinition[]>("tags.definitions", []);
@@ -406,6 +526,10 @@ export class TagDefinitionsPanel {
     });
 
     if (name && name.trim()) {
+      if (name.trim() === this._getRemarkName()) {
+        vscode.window.showErrorMessage("Tag name is reserved for remark.");
+        return;
+      }
       const newDef: TagDefinition = {
         name: name.trim(),
         icon: "tag",
@@ -439,6 +563,10 @@ export class TagDefinitionsPanel {
    * 确认删除标签（使用 VS Code 原生确认框）
    */
   private async _confirmDelete(name: string) {
+    if (name === this._getRemarkName()) {
+      vscode.window.showErrorMessage("Remark tag cannot be deleted.");
+      return;
+    }
     // 检查是否有文档使用该标签
     const blocks = this._tagService.getBlocksByTag(name);
     const hasReferences = blocks.length > 0;
@@ -474,8 +602,6 @@ export class TagDefinitionsPanel {
    * 从所有文件中删除标签引用
    */
   private async _removeTagReferencesFromFiles(tagName: string): Promise<void> {
-    // 转义正则特殊字符
-    const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const files = await vscode.workspace.findFiles("**/*.{md,typ}");
 
     if (files.length === 0) {
@@ -484,11 +610,13 @@ export class TagDefinitionsPanel {
 
     let totalChanged = 0;
     const edit = new vscode.WorkspaceEdit();
+    const remarkTagName = this._tagService.getRemarkName();
 
     for (const fileUri of files) {
       try {
         const doc = await vscode.workspace.openTextDocument(fileUri);
         const text = doc.getText();
+        const kind = getCommentKindForDocument(doc);
 
         // 检查文件是否包含该标签
         if (!text.includes(`#${tagName}`)) {
@@ -500,36 +628,27 @@ export class TagDefinitionsPanel {
           const line = doc.lineAt(i);
           const lineText = line.text;
 
-          // 匹配包含标签的注释部分
-          const commentMatch = lineText.match(/\/\/(.*)$/);
-          if (!commentMatch) {
+          const commentPart = extractCommentContent(lineText, kind);
+          if (!commentPart) {
             continue;
           }
 
-          const commentPart = commentMatch[1];
-          // 检查注释中是否包含目标标签
-          const tagRegex = new RegExp(`#${escapedTag}(?=\\s|$)`, "g");
-          if (!tagRegex.test(commentPart)) {
+          const { tags, remark } = parseCommentContent(commentPart);
+          if (!tags.includes(tagName)) {
             continue;
           }
 
-          // 删除标签（保留其他标签和注释符号）
-          let newCommentPart = commentPart.replace(
-            new RegExp(`\\s*#${escapedTag}(?=\\s|$)`, "g"),
-            ""
+          const remainingTags = tags.filter((tag) => tag !== tagName);
+          const { tags: normalizedTags, remark: normalizedRemark } =
+            normalizeTagsAndRemark(remainingTags, remark, remarkTagName, {
+              ensureRemarkTag: false,
+            });
+          const newLineText = updateLineWithComment(
+            lineText,
+            kind,
+            normalizedTags,
+            normalizedRemark
           );
-
-          // 清理多余空格
-          newCommentPart = newCommentPart.replace(/\s+/g, " ").trim();
-
-          let newLineText: string;
-          if (newCommentPart === "" || newCommentPart.match(/^\s*$/)) {
-            // 注释为空，删除整个注释部分（包括//）
-            newLineText = lineText.replace(/\s*\/\/.*$/, "");
-          } else {
-            // 保留非空注释
-            newLineText = lineText.replace(/\/\/.*$/, `// ${newCommentPart}`);
-          }
 
           if (newLineText !== lineText) {
             edit.replace(fileUri, line.range, newLineText);
@@ -577,17 +696,39 @@ export class TagDefinitionsPanel {
 
     let totalChanged = 0;
     const edit = new vscode.WorkspaceEdit();
+    const remarkTagName = this._tagService.getRemarkName();
 
     for (const [, file] of fileMap) {
       try {
         const doc = await vscode.workspace.openTextDocument(file.uri);
+        const kind = getCommentKindForDocument(doc);
         for (const lineNum of file.lines) {
           const line = doc.lineAt(lineNum);
           const text = line.text;
-          // 替换 #oldName 为 #newName
-          const regex = new RegExp(`#${oldName}\\b`, "g");
-          if (regex.test(text)) {
-            const newText = text.replace(regex, `#${newName}`);
+          const commentPart = extractCommentContent(text, kind);
+          if (!commentPart) {
+            continue;
+          }
+
+          const { tags, remark } = parseCommentContent(commentPart);
+          if (!tags.includes(oldName)) {
+            continue;
+          }
+
+          const renamedTags = tags.map((tag) =>
+            tag === oldName ? newName : tag
+          );
+          const { tags: normalizedTags, remark: normalizedRemark } =
+            normalizeTagsAndRemark(renamedTags, remark, remarkTagName, {
+              ensureRemarkTag: false,
+            });
+          const newText = updateLineWithComment(
+            text,
+            kind,
+            normalizedTags,
+            normalizedRemark
+          );
+          if (newText !== text) {
             edit.replace(file.uri, line.range, newText);
             totalChanged++;
           }
@@ -663,6 +804,23 @@ export class TagDefinitionsPanel {
     <div class="naming-hint">
         <span class="codicon codicon-info"></span>
         Tag names can contain Chinese characters, punctuation, letters, numbers, etc. <strong> Space characters are not allowed. </strong>
+    </div>
+
+    <div class="section-title">Remark Settings</div>
+    <div class="tag-card remark-card">
+        <div class="tag-icon remark-icon" id="remarkIcon" title="Click to change icon">
+            <span class="codicon codicon-comment"></span>
+        </div>
+        <div class="tag-info">
+            <div class="tag-name">
+                <input type="text" id="remarkNameInput" placeholder="remark">
+            </div>
+        </div>
+        <div class="tag-actions">
+            <button class="icon-btn remark-save-btn" id="remarkSaveBtn" title="Save remark settings">
+                <span class="codicon codicon-pass"></span>
+            </button>
+        </div>
     </div>
 
     <div class="controls-row">

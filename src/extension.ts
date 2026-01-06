@@ -15,6 +15,7 @@ import { HoverSettingsPanel } from "./webview/hoverSettings";
 import { TagIndexService } from "./services/tagIndexService";
 import { TagViewProvider } from "./webview/tagView";
 import { registerEditTagsCommand } from "./commands/editTags";
+import { registerEditRemarkCommand } from "./commands/editRemark";
 import { TagDefinitionsPanel } from "./webview/tagDefinitionsPanel";
 import { HeadingSearchProvider } from "./webview/headingSearch";
 import { MindmapViewProvider } from "./webview/mindmapView";
@@ -95,6 +96,9 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     registerEditTagsCommand(headingProvider, treeView)
   );
+  context.subscriptions.push(
+    registerEditRemarkCommand(headingProvider, treeView)
+  );
 
   // Register Refresh Tags Command
   context.subscriptions.push(
@@ -140,6 +144,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
     const buttons = configuration.get<string[]>("view.hoverToolbar", [
       "editTags",
+      "editRemark",
       "filterToSubtree",
       "deleteHeading",
     ]);
@@ -171,6 +176,7 @@ export function activate(context: vscode.ExtensionContext): void {
           "shiftDown",
           "moveHeadingUp",
           "moveHeadingDown",
+          "editRemark",
           "filterToSubtree",
           "deleteHeading",
         ]);

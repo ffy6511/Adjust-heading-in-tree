@@ -1,5 +1,6 @@
 import { Position, Range } from "vscode";
 import { sanitizeHeadingForDisplay } from "../utils/headingDisplay";
+import { parseCommentContent } from "../utils/tagRemark";
 
 export type HeadingKind = "markdown" | "typst";
 
@@ -11,16 +12,17 @@ export interface HeadingMatch {
   line: number;
   range: Range;
   tags: string[];
+  remark?: string;
 }
 
 const markdownHeading = /^(#{1,6})\s+(.*)$/;
 const typstHeading = /^(=+)/;
 
-// Tag extraction regexes
-// Markdown: <!-- #tag1 #tag2 --> at the end of the line
-const markdownTagRegex = /<!--\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)-->\s*$/;
-// Typst: // #tag1 #tag2 at the end of the line
-const typstTagRegex = /\/\/\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)$/;
+// Comment extraction regexes
+// Markdown: <!-- ... --> at the end of the line
+const markdownCommentRegex = /<!--\s*(.*?)\s*-->\s*$/;
+// Typst: // ... at the end of the line
+const typstCommentRegex = /\/\/\s*(.*)$/;
 
 /**
  * 解析 Markdown（`#`）与 Typst（`=`）标题，返回标题命中的结果列表。
@@ -49,7 +51,7 @@ export function parseHeadings(content: string): HeadingMatch[] {
 
     if (markdownResult) {
       const [, hashes, rawText] = markdownResult;
-      const { text, tags } = parseMarkdownTags(rawText);
+      const { text, tags, remark } = parseMarkdownTags(rawText);
       const displayText = sanitizeHeadingForDisplay(text, "markdown");
       matches.push(
         makeMatch(
@@ -59,7 +61,8 @@ export function parseHeadings(content: string): HeadingMatch[] {
           text,
           displayText,
           line.length,
-          tags
+          tags,
+          remark
         )
       );
       continue;
@@ -67,7 +70,7 @@ export function parseHeadings(content: string): HeadingMatch[] {
 
     const typstResult = parseTypstHeading(line);
     if (typstResult) {
-      const { level, text, tags } = typstResult;
+      const { level, text, tags, remark } = typstResult;
       const displayText = sanitizeHeadingForDisplay(text, "typst");
       matches.push(
         makeMatch(
@@ -77,7 +80,8 @@ export function parseHeadings(content: string): HeadingMatch[] {
           text,
           displayText,
           line.length,
-          tags
+          tags,
+          remark
         )
       );
     }
@@ -171,20 +175,24 @@ function matchFenceMarker(line: string): string | undefined {
   return line.slice(0, length);
 }
 
-function parseMarkdownTags(rawText: string): { text: string; tags: string[] } {
-  const match = markdownTagRegex.exec(rawText);
+function parseMarkdownTags(rawText: string): {
+  text: string;
+  tags: string[];
+  remark?: string;
+} {
+  const match = markdownCommentRegex.exec(rawText);
   if (match) {
-    const tagString = match[1];
-    const tags = extractTags(tagString);
+    const comment = match[1];
+    const { tags, remark } = parseCommentContent(comment);
     const text = rawText.slice(0, match.index).trim();
-    return { text, tags };
+    return { text, tags, remark };
   }
-  return { text: rawText.trim(), tags: [] };
+  return { text: rawText.trim(), tags: [], remark: undefined };
 }
 
 function parseTypstHeading(
   line: string
-): { level: number; text: string; tags: string[] } | undefined {
+): { level: number; text: string; tags: string[]; remark?: string } | undefined {
   const match = typstHeading.exec(line);
   if (!match) {
     return undefined;
@@ -193,13 +201,14 @@ function parseTypstHeading(
   const level = match[1].length;
   const content = line.slice(level);
 
-  // Check for tags
-  const tagMatch = typstTagRegex.exec(content);
-  if (tagMatch) {
-    const tagString = tagMatch[1];
-    const tags = extractTags(tagString);
-    const text = content.slice(0, tagMatch.index).trim();
-    return { level, text, tags };
+  const commentMatch = typstCommentRegex.exec(content);
+  if (commentMatch) {
+    const { tags, remark } = parseCommentContent(commentMatch[1]);
+    const text = content.slice(0, commentMatch.index).trim();
+    if (!text) {
+      return undefined;
+    }
+    return { level, text, tags, remark };
   }
 
   const text = content.trim();
@@ -207,15 +216,7 @@ function parseTypstHeading(
     return undefined;
   }
 
-  return { level, text, tags: [] };
-}
-
-function extractTags(tagString: string): string[] {
-  return tagString
-    .split(/\s+/)
-    .map((t) => t.trim())
-    .filter((t) => t.startsWith("#"))
-    .map((t) => t.slice(1));
+  return { level, text, tags: [], remark: undefined };
 }
 
 function makeMatch(
@@ -225,7 +226,8 @@ function makeMatch(
   text: string,
   displayText: string,
   lineLength: number,
-  tags: string[]
+  tags: string[],
+  remark?: string
 ): HeadingMatch {
   const start = new Position(line, 0);
   const end = new Position(line, lineLength);
@@ -237,5 +239,6 @@ function makeMatch(
     line,
     range: new Range(start, end),
     tags,
+    remark,
   };
 }

@@ -3,10 +3,12 @@
 let definitions = [];
 let allIcons = [];
 let editingTag = null;
+let editingRemark = false;
 let activePicker = null; // 'icon' | 'color' | null
 let iconPickerCallback = null;
 let searchValue = "";
 let maxPinnedDisplay = 6;
+let remarkDefinition = null;
 const presetColors = [
     "#e92825ff",
     "#fb8c00",
@@ -32,10 +34,12 @@ window.addEventListener('message', event => {
         definitions = msg.data;
         allIcons = msg.icons;
         maxPinnedDisplay = clampMaxPinned(msg.maxPinnedDisplay ?? 6);
+        remarkDefinition = msg.remark || { name: "remark", icon: "comment" };
         const input = document.getElementById('maxPinnedInput');
         if (input) {
             input.value = maxPinnedDisplay;
         }
+        renderRemark();
         renderTags();
     } else if (msg.type === 'renameComplete') {
         // 重命名完成
@@ -103,8 +107,42 @@ function renderTags() {
     });
 }
 
+function renderRemark() {
+    const nameInput = document.getElementById('remarkNameInput');
+    const iconBox = document.getElementById('remarkIcon');
+    if (!remarkDefinition || !nameInput || !iconBox) {
+        return;
+    }
+
+    if (nameInput.value !== remarkDefinition.name) {
+        nameInput.value = remarkDefinition.name;
+    }
+
+    const icon = remarkDefinition.icon || 'comment';
+    const iconSpan = iconBox.querySelector('.codicon');
+    if (iconSpan) {
+        iconSpan.className = `codicon codicon-${icon}`;
+    }
+}
+
 function openIconPicker(index) {
     editingTag = index;
+    editingRemark = false;
+    activePicker = 'icon';
+    const picker = document.getElementById('iconPicker');
+    renderIconGrid(allIcons);
+    picker.classList.remove('hidden');
+    document.getElementById('overlay').classList.remove('hidden');
+    document.getElementById('iconSearch').value = '';
+    document.getElementById('iconSearch').focus();
+}
+
+function openRemarkIconPicker() {
+    if (!remarkDefinition) {
+        return;
+    }
+    editingTag = null;
+    editingRemark = true;
     activePicker = 'icon';
     const picker = document.getElementById('iconPicker');
     renderIconGrid(allIcons);
@@ -128,6 +166,14 @@ function renderIconGrid(icons) {
 }
 
 function selectIcon(icon) {
+    if (editingRemark) {
+        if (remarkDefinition) {
+            remarkDefinition.icon = icon;
+            renderRemark();
+        }
+        closeIconPicker();
+        return;
+    }
     if (editingTag !== null) {
         definitions[editingTag].icon = icon;
         renderTags();
@@ -142,6 +188,7 @@ function closeIconPicker() {
     document.getElementById('iconPicker').classList.add('hidden');
     hideOverlayIfIdle();
     editingTag = null;
+    editingRemark = false;
     activePicker = null;
 }
 
@@ -155,6 +202,16 @@ document.getElementById('iconSearch').addEventListener('input', (e) => {
     const filtered = allIcons.filter(i => i.includes(query));
     renderIconGrid(filtered);
 });
+
+const remarkIcon = document.getElementById('remarkIcon');
+if (remarkIcon) {
+    remarkIcon.addEventListener('click', openRemarkIconPicker);
+}
+
+const remarkSaveBtn = document.getElementById('remarkSaveBtn');
+if (remarkSaveBtn) {
+    remarkSaveBtn.addEventListener('click', saveRemark);
+}
 
 const tagSearchInput = document.getElementById('tagSearch');
 if (tagSearchInput) {
@@ -202,6 +259,16 @@ function saveTag(index) {
     } else {
         vscode.postMessage({ command: 'saveDefinition', definition: def });
     }
+}
+
+function saveRemark() {
+    const input = document.getElementById('remarkNameInput');
+    if (!input || !remarkDefinition) {
+        return;
+    }
+    const name = input.value.trim();
+    const def = { name, icon: remarkDefinition.icon };
+    vscode.postMessage({ command: 'saveRemarkDefinition', definition: def });
 }
 
 function deleteTag(index) {
