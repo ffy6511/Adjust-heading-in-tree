@@ -199,7 +199,7 @@ export class TagDefinitionsPanel {
         name: remarkDef.name,
         icon: remarkDef.icon ?? existing.icon,
         color: remarkDef.color ?? existing.color,
-        pinned: true,
+        pinned: existing.pinned ?? remarkDef.pinned,
       };
       const same =
         existing.name === merged.name &&
@@ -445,9 +445,20 @@ export class TagDefinitionsPanel {
     const remarkDef: TagDefinition = {
       name: def.name.trim(),
       icon: def.icon ?? existingRemark?.icon ?? "comment",
-      color: existingRemark?.color ?? this._defaultColor,
-      pinned: true,
+      color: def.color ?? existingRemark?.color ?? this._defaultColor,
+      pinned: def.pinned ?? existingRemark?.pinned ?? true,
     };
+
+    const maxPinnedDisplay = this._getMaxPinnedDisplay();
+    const pinnedCount = this._countPinned(otherDefs);
+    const wasPinned = existingRemark?.pinned ?? false;
+    const willPin = remarkDef.pinned && !wasPinned;
+    if (willPin && pinnedCount >= maxPinnedDisplay) {
+      vscode.window.showErrorMessage(
+        `Pin ${maxPinnedDisplay} tags at most，please unpin one.`
+      );
+      return;
+    }
 
     const ordered = this._sortDefinitions([remarkDef, ...otherDefs]);
     await config.update(
@@ -807,8 +818,11 @@ export class TagDefinitionsPanel {
     </div>
 
     <div class="section-title">Remark Settings</div>
-    <div class="tag-card remark-card">
-        <div class="tag-icon remark-icon" id="remarkIcon" title="Click to change icon">
+    <div class="remark-hint">Used when a heading only has a remark without other tags.</div>
+    <div class="tag-card">
+        <button class="color-btn" id="remarkColorBtn" title="Choose color">
+        </button>
+        <div class="tag-icon" id="remarkIcon" title="Click to change icon">
             <span class="codicon codicon-comment"></span>
         </div>
         <div class="tag-info">
@@ -817,8 +831,14 @@ export class TagDefinitionsPanel {
             </div>
         </div>
         <div class="tag-actions">
-            <button class="icon-btn remark-save-btn" id="remarkSaveBtn" title="Save remark settings">
+            <button class="icon-btn pin-btn" id="remarkPinBtn" title="Pin this tag to show first in Tag View">
+                <span class="codicon codicon-pin"></span>
+            </button>
+            <button class="icon-btn save-btn" id="remarkSaveBtn" title="Save remark settings">
                 <span class="codicon codicon-pass"></span>
+            </button>
+            <button class="icon-btn delete-btn" id="remarkDeleteBtn" title="Delete tag">
+                <span class="codicon codicon-close"></span>
             </button>
         </div>
     </div>

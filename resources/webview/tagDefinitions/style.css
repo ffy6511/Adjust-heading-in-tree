@@ -352,8 +352,10 @@ h1 {
   font-weight: 600;
   margin: 12px 0 6px;
 }
-.remark-card {
-  margin-bottom: 12px;
+.remark-hint {
+  margin-bottom: 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
 }
 .empty-state {
   padding: 12px;

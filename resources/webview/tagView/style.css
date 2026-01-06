@@ -93,6 +93,7 @@ body {
   opacity: 0.75;
   margin: 2px 0px;
   padding: 4px 8px;
+  min-width: 6ch;
   border-radius: 12px;
   cursor: pointer;
   color: var(--vscode-editor-foreground);

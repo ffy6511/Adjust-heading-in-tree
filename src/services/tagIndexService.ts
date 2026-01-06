@@ -198,7 +198,7 @@ export class TagIndexService {
       name: remarkName,
       color: existing?.color ?? this.defaultTagColor,
       icon: existing?.icon ?? this.defaultRemarkIcon,
-      pinned: true,
+      pinned: existing?.pinned ?? true,
     };
   }
 
