@@ -16,6 +16,7 @@ export class TagDefinitionsPanel {
   private readonly _tagService: TagIndexService;
   private readonly _defaultColor = "#808080";
   private _disposables: vscode.Disposable[] = [];
+  private _suppressTagSync = false;
 
   private constructor(
     panel: vscode.WebviewPanel,
@@ -30,6 +31,9 @@ export class TagDefinitionsPanel {
     // 监听配置变化，保证当设置面板或其他地方调整 Pin 上限时，WebView 状态保持一致
     this._disposables.push(
       vscode.workspace.onDidChangeConfiguration(async (e) => {
+        if (this._suppressTagSync) {
+          return;
+        }
         if (e.affectsConfiguration("adjustHeadingInTree.tags")) {
           await this._sendDefinitions();
         }
@@ -461,16 +465,21 @@ export class TagDefinitionsPanel {
     }
 
     const ordered = this._sortDefinitions([remarkDef, ...otherDefs]);
-    await config.update(
-      "tags.definitions",
-      ordered,
-      vscode.ConfigurationTarget.Global
-    );
-    await config.update(
-      "tags.remarkName",
-      remarkDef.name,
-      vscode.ConfigurationTarget.Global
-    );
+    this._suppressTagSync = true;
+    try {
+      await config.update(
+        "tags.remarkName",
+        remarkDef.name,
+        vscode.ConfigurationTarget.Global
+      );
+      await config.update(
+        "tags.definitions",
+        ordered,
+        vscode.ConfigurationTarget.Global
+      );
+    } finally {
+      this._suppressTagSync = false;
+    }
 
     if (oldName !== remarkDef.name) {
       await this._renameTagInFiles(oldName, remarkDef.name);
@@ -817,29 +826,31 @@ export class TagDefinitionsPanel {
         Tag names can contain Chinese characters, punctuation, letters, numbers, etc. <strong> Space characters are not allowed. </strong>
     </div>
 
-    <div class="section-title">Remark Settings</div>
-    <div class="remark-hint">Used when a heading only has a remark without other tags.</div>
-    <div class="tag-card">
-        <button class="color-btn" id="remarkColorBtn" title="Choose color">
-        </button>
-        <div class="tag-icon" id="remarkIcon" title="Click to change icon">
-            <span class="codicon codicon-comment"></span>
-        </div>
-        <div class="tag-info">
-            <div class="tag-name">
-                <input type="text" id="remarkNameInput" placeholder="remark">
+    <div class="remark-section">
+        <div class="section-title">Remark Settings</div>
+        <div class="remark-hint">Used when a heading only has a remark without other tags.</div>
+        <div class="tag-card">
+            <button class="color-btn" id="remarkColorBtn" title="Choose color">
+            </button>
+            <div class="tag-icon" id="remarkIcon" title="Click to change icon">
+                <span class="codicon codicon-comment"></span>
             </div>
-        </div>
-        <div class="tag-actions">
-            <button class="icon-btn pin-btn" id="remarkPinBtn" title="Pin this tag to show first in Tag View">
-                <span class="codicon codicon-pin"></span>
-            </button>
-            <button class="icon-btn save-btn" id="remarkSaveBtn" title="Save remark settings">
-                <span class="codicon codicon-pass"></span>
-            </button>
-            <button class="icon-btn delete-btn" id="remarkDeleteBtn" title="Delete tag">
-                <span class="codicon codicon-close"></span>
-            </button>
+            <div class="tag-info">
+                <div class="tag-name">
+                    <input type="text" id="remarkNameInput" placeholder="remark">
+                </div>
+            </div>
+            <div class="tag-actions">
+                <button class="icon-btn pin-btn" id="remarkPinBtn" title="Pin this tag to show first in Tag View">
+                    <span class="codicon codicon-pin"></span>
+                </button>
+                <button class="icon-btn save-btn" id="remarkSaveBtn" title="Save remark settings">
+                    <span class="codicon codicon-pass"></span>
+                </button>
+                <button class="icon-btn delete-btn" id="remarkDeleteBtn" title="Delete tag">
+                    <span class="codicon codicon-close"></span>
+                </button>
+            </div>
         </div>
     </div>
 

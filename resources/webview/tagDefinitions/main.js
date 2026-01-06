@@ -34,7 +34,7 @@ window.addEventListener('message', event => {
         definitions = msg.data;
         allIcons = msg.icons;
         maxPinnedDisplay = clampMaxPinned(msg.maxPinnedDisplay ?? 6);
-        remarkDefinition = msg.remark || { name: "remark", icon: "comment-discussion-quote", color: defaultColor, pinned: true };
+        remarkDefinition = msg.remark || { name: "Remark", icon: "comment-discussion-quote", color: defaultColor, pinned: true };
         const input = document.getElementById('maxPinnedInput');
         if (input) {
             input.value = maxPinnedDisplay;
