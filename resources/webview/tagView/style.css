@@ -147,7 +147,7 @@ body {
   gap: 8px;
 }
 .block-item {
-  position: relative; /* For absolute positioning of delete button */
+  position: relative; /* For absolute positioning of action buttons */
   padding: 2px 8px;
 
   background: transparent;
@@ -157,8 +157,9 @@ body {
 .block-item:hover {
   background: var(--vscode-toolbar-hoverBackground);
 }
-.block-item:hover .delete-btn {
+.block-item:hover .block-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 .block-content {
   font-weight: 550;
@@ -166,12 +167,54 @@ body {
   font-size: 0.95em;
 }
 .block-remark {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
   font-size: 0.85em;
   color: var(--vscode-descriptionForeground);
   line-height: 1.3;
   margin-top: 2px;
 }
+.block-remark .remark-icon {
+  font-size: 0.9em;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+.block-actions {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.action-btn {
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--vscode-icon-foreground);
+  background: transparent;
+  opacity: 0.85;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+.action-btn:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground);
+}
 .block-breadcrumb {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
   font-size: 0.85em;
   color: var(--vscode-descriptionForeground);
   opacity: 0;
@@ -181,6 +224,10 @@ body {
     margin-top 0.2s ease, padding-bottom 0.2s ease;
   transition-delay: 0s;
   margin-top: 0;
+}
+.block-breadcrumb .breadcrumb-icon {
+  font-size: 0.95em;
+  opacity: 0.85;
 }
 .block-item:hover .block-breadcrumb {
   opacity: 1;
@@ -197,31 +244,12 @@ body {
 .codicon {
   vertical-align: middle;
 }
-/* Delete button styles */
 .delete-btn {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 20px;
-  height: 20px;
-  padding: 2px;
-  border: none;
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  line-height: 1;
   color: var(--vscode-errorForeground);
-  background: transparent;
 }
-
 .delete-btn:hover {
   background: var(--vscode-inputValidation-errorBackground);
-  opacity: 0.4;
+  opacity: 0.9;
 }
 
 .delete-btn.confirm {

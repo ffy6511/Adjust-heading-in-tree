@@ -5,6 +5,8 @@ import {
   TagDefinition,
 } from "../services/tagIndexService";
 import * as path from "path";
+import { parseHeadings } from "../providers/parser";
+import { HeadingNode } from "../providers/headingProvider";
 import {
   extractCommentContent,
   getCommentKindForDocument,
@@ -124,6 +126,18 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           await this.removeTagReferences(data.uri, data.line, data.tagNames);
           break;
         }
+        case "editTags": {
+          await this.editBlock(data.uri, data.line, "headingNavigator.editTags");
+          break;
+        }
+        case "editRemark": {
+          await this.editBlock(
+            data.uri,
+            data.line,
+            "headingNavigator.editRemark"
+          );
+          break;
+        }
       }
     });
 
@@ -213,12 +227,53 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       type: "update",
       tags: tags,
       definitions: defs,
+      remarkDefinition: this._tagService.getRemarkDefinition(),
       data: payload,
       isGlobal: this._isGlobalScope,
       isMultiSelect: this._isMultiSelectMode,
       maxPinnedDisplay: this.getMaxPinnedDisplay(),
       currentFileName: activeUri ? path.basename(activeUri.fsPath) : null,
     });
+  }
+
+  private async editBlock(
+    uriStr: string,
+    line: number,
+    command: "headingNavigator.editTags" | "headingNavigator.editRemark"
+  ): Promise<void> {
+    try {
+      const uri = vscode.Uri.parse(uriStr);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc);
+      const lineText = doc.lineAt(line).text;
+      const matches = parseHeadings(lineText);
+      if (matches.length === 0) {
+        vscode.window.showErrorMessage(
+          "Could not parse heading at line " + (line + 1)
+        );
+        return;
+      }
+
+      const match = matches[0];
+      const range = doc.lineAt(line).range;
+      const node: HeadingNode = {
+        id: `${line}-${match.level}`,
+        label: match.displayText ?? match.text,
+        level: match.level,
+        kind: match.kind,
+        range,
+        children: [],
+      };
+
+      editor.selection = new vscode.Selection(range.start, range.start);
+      await vscode.commands.executeCommand(command, node);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to edit tag: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 
   /**
