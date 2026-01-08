@@ -15,12 +15,16 @@ import { HoverSettingsPanel } from "./webview/hoverSettings";
 import { TagIndexService } from "./services/tagIndexService";
 import { TagViewProvider } from "./webview/tagView";
 import { registerEditTagsCommand } from "./commands/editTags";
+import { registerEditRemarkCommand } from "./commands/editRemark";
 import { TagDefinitionsPanel } from "./webview/tagDefinitionsPanel";
 import { HeadingSearchProvider } from "./webview/headingSearch";
+import { MindmapViewProvider } from "./webview/mindmapView";
+import { ViewStateService } from "./services/viewStateService";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Initialize Tag Service
   const tagService = TagIndexService.getInstance();
+  const viewStateService = ViewStateService.getInstance();
 
   // Register Tag View
   const tagViewProvider = new TagViewProvider(context.extensionUri, tagService);
@@ -45,6 +49,20 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const headingProvider = new HeadingProvider();
 
+  // Register Mind Map View
+  const mindmapViewProvider = new MindmapViewProvider(
+    context.extensionUri,
+    headingProvider,
+    tagService,
+    viewStateService
+  );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      MindmapViewProvider.viewType,
+      mindmapViewProvider
+    )
+  );
+
   const dragAndDropController = new HeadingDragAndDropController(
     headingProvider
   );
@@ -60,6 +78,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   headingProvider.setTreeView(treeView);
 
+  treeView.onDidExpandElement((e) => {
+    viewStateService.setExpanded(e.element.id, true);
+  });
+
+  treeView.onDidCollapseElement((e) => {
+    viewStateService.setExpanded(e.element.id, false);
+  });
+
   context.subscriptions.push(treeView);
   context.subscriptions.push(dragAndDropController);
   context.subscriptions.push(
@@ -69,6 +95,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register Edit Tags Command
   context.subscriptions.push(
     registerEditTagsCommand(headingProvider, treeView)
+  );
+  context.subscriptions.push(
+    registerEditRemarkCommand(headingProvider, treeView)
   );
 
   // Register Refresh Tags Command
@@ -115,6 +144,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
     const buttons = configuration.get<string[]>("view.hoverToolbar", [
       "editTags",
+      "editRemark",
       "filterToSubtree",
       "deleteHeading",
     ]);
@@ -146,6 +176,7 @@ export function activate(context: vscode.ExtensionContext): void {
           "shiftDown",
           "moveHeadingUp",
           "moveHeadingDown",
+          "editRemark",
           "filterToSubtree",
           "deleteHeading",
         ]);
@@ -328,6 +359,27 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  let mindmapActive = false;
+  vscode.commands.executeCommand(
+    "setContext",
+    "headingNavigator.mindmapActive",
+    mindmapActive
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "headingNavigator.toggleMindmapView",
+      () => {
+        mindmapActive = !mindmapActive;
+        vscode.commands.executeCommand(
+          "setContext",
+          "headingNavigator.mindmapActive",
+          mindmapActive
+        );
+      }
+    )
+  );
+
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((event) => {
       if (event.textEditor === vscode.window.activeTextEditor) {
@@ -355,14 +407,34 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const revealDisposable = vscode.commands.registerCommand(
     "headingNavigator.reveal",
-    (range: vscode.Range) => {
+    async (range: vscode.Range) => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;
       }
 
-      editor.selection = new vscode.Selection(range.start, range.start);
-      editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+      const endPos = range.end;
+      const targetSelection = new vscode.Selection(endPos, endPos);
+
+      const shownEditor = await vscode.window.showTextDocument(
+        editor.document,
+        {
+          selection: targetSelection,
+          preserveFocus: false,
+          viewColumn: editor.viewColumn,
+        }
+      );
+
+      shownEditor.revealRange(
+        new vscode.Range(endPos, endPos),
+        vscode.TextEditorRevealType.InCenterIfOutsideViewport
+      );
+      // 通过键盘命令, 模拟用户点击
+      await vscode.commands.executeCommand("cursorMove", {
+        to: "left",
+        by: "character",
+        value: 1,
+      });
     }
   );
 

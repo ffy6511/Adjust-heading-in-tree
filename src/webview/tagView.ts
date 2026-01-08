@@ -5,6 +5,15 @@ import {
   TagDefinition,
 } from "../services/tagIndexService";
 import * as path from "path";
+import { parseHeadings } from "../providers/parser";
+import { HeadingNode } from "../providers/headingProvider";
+import {
+  extractCommentContent,
+  getCommentKindForDocument,
+  normalizeTagsAndRemark,
+  parseCommentContent,
+  updateLineWithComment,
+} from "../utils/tagRemark";
 
 export class TagViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "headingNavigator.tagView";
@@ -117,6 +126,18 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           await this.removeTagReferences(data.uri, data.line, data.tagNames);
           break;
         }
+        case "editTags": {
+          await this.editBlock(data.uri, data.line, "headingNavigator.editTags");
+          break;
+        }
+        case "editRemark": {
+          await this.editBlock(
+            data.uri,
+            data.line,
+            "headingNavigator.editRemark"
+          );
+          break;
+        }
       }
     });
 
@@ -144,6 +165,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         fileName: string;
         tagName?: string;
         breadcrumb?: string[];
+        remark?: string;
       }>
     > = {};
 
@@ -152,18 +174,19 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       tags = this._tagService.getAllTags();
       for (const tag of tags) {
         const blocks = this._tagService.getBlocksByTag(tag);
-        payload[tag] = blocks.map((b) => ({
-          text: b.displayText ?? b.text,
-          line: b.line,
-          level: b.level,
-          uri: b.uri.toString(),
-          fsPath: b.uri.fsPath,
-          fileName: path.basename(b.uri.fsPath),
-          breadcrumb:
-            b.breadcrumb ??
-            this._tagService.getBreadcrumb(b.uri, b.line) ??
-            [],
-        }));
+          payload[tag] = blocks.map((b) => ({
+            text: b.displayText ?? b.text,
+            line: b.line,
+            level: b.level,
+            uri: b.uri.toString(),
+            fsPath: b.uri.fsPath,
+            fileName: path.basename(b.uri.fsPath),
+            breadcrumb:
+              b.breadcrumb ??
+              this._tagService.getBreadcrumb(b.uri, b.line) ??
+              [],
+            remark: b.remark,
+          }));
       }
 
       // Add tagName to blocks for deletion purposes
@@ -190,6 +213,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
               b.breadcrumb ??
               this._tagService.getBreadcrumb(b.uri, b.line) ??
               [],
+            remark: b.remark,
           }));
         }
       } else {
@@ -203,12 +227,53 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       type: "update",
       tags: tags,
       definitions: defs,
+      remarkDefinition: this._tagService.getRemarkDefinition(),
       data: payload,
       isGlobal: this._isGlobalScope,
       isMultiSelect: this._isMultiSelectMode,
       maxPinnedDisplay: this.getMaxPinnedDisplay(),
       currentFileName: activeUri ? path.basename(activeUri.fsPath) : null,
     });
+  }
+
+  private async editBlock(
+    uriStr: string,
+    line: number,
+    command: "headingNavigator.editTags" | "headingNavigator.editRemark"
+  ): Promise<void> {
+    try {
+      const uri = vscode.Uri.parse(uriStr);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc);
+      const lineText = doc.lineAt(line).text;
+      const matches = parseHeadings(lineText);
+      if (matches.length === 0) {
+        vscode.window.showErrorMessage(
+          "Could not parse heading at line " + (line + 1)
+        );
+        return;
+      }
+
+      const match = matches[0];
+      const range = doc.lineAt(line).range;
+      const node: HeadingNode = {
+        id: `${line}-${match.level}`,
+        label: match.displayText ?? match.text,
+        level: match.level,
+        kind: match.kind,
+        range,
+        children: [],
+      };
+
+      editor.selection = new vscode.Selection(range.start, range.start);
+      await vscode.commands.executeCommand(command, node);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to edit tag: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 
   /**
@@ -311,33 +376,25 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       const uri = vscode.Uri.parse(uriStr);
       const document = await vscode.workspace.openTextDocument(uri);
       const lineText = document.lineAt(line).text;
-
-      // 匹配包含标签的注释部分
-      const commentMatch = lineText.match(/\/\/(.*)$/);
-      if (!commentMatch) {
+      const kind = getCommentKindForDocument(document);
+      const commentPart = extractCommentContent(lineText, kind);
+      if (!commentPart) {
         throw new Error("No comment found on this line");
       }
 
-      const commentPart = commentMatch[1];
-      let newCommentPart = commentPart;
-
-      // 删除所有指定的标签
-      for (const tagName of tagNames) {
-        // 转义正则特殊字符
-        const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const tagRegex = new RegExp(`\\s*#${escapedTag}(?=\\s|$)`, "g");
-        newCommentPart = newCommentPart.replace(tagRegex, "").trim();
-      }
-
-      let newLineText: string;
-
-      if (newCommentPart === "" || newCommentPart.match(/^\s*$/)) {
-        // 注释为空，删除整个注释部分（包括//）
-        newLineText = lineText.replace(/\s*\/\/.*$/, "");
-      } else {
-        // 保留非空注释
-        newLineText = lineText.replace(/\/\/.*$/, `// ${newCommentPart}`);
-      }
+      const { tags, remark } = parseCommentContent(commentPart);
+      const remainingTags = tags.filter((tag) => !tagNames.includes(tag));
+      const remarkTagName = this._tagService.getRemarkName();
+      const { tags: normalizedTags, remark: normalizedRemark } =
+        normalizeTagsAndRemark(remainingTags, remark, remarkTagName, {
+          ensureRemarkTag: false,
+        });
+      const newLineText = updateLineWithComment(
+        lineText,
+        kind,
+        normalizedTags,
+        normalizedRemark
+      );
 
       // 应用编辑
       const edit = new vscode.WorkspaceEdit();

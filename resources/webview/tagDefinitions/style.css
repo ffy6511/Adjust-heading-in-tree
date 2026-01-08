@@ -297,6 +297,7 @@ h1 {
   justify-content: flex-start;
   flex-wrap: nowrap;
   margin-bottom: 12px;
+  padding: 4px 0 4px;
 }
 .max-pinned-control {
   display: flex;
@@ -340,12 +341,25 @@ h1 {
 }
 .naming-hint {
   padding: 8px 12px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
   background: var(--vscode-textBlockQuote-background);
   border-radius: 4px;
   border-left: 3px solid var(--vscode-textBlockQuote-border);
+}
+.section-title {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+.remark-section {
+  padding: 4px 0 12px;
+}
+.remark-hint {
+  margin-bottom: 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
 }
 .empty-state {
   padding: 12px;

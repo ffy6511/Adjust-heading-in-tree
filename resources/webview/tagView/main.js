@@ -3,6 +3,7 @@
 let state = {
     tags: [],
     definitions: [],
+    remarkDefinition: null,
     data: {},
     selectedTags: new Set(),
     searchQuery: "",
@@ -29,6 +30,7 @@ window.addEventListener('message', event => {
         // 这里简单直接使用新数据
         state.tags = message.tags;
         state.definitions = message.definitions;
+        state.remarkDefinition = message.remarkDefinition || null;
         state.data = message.data;
         state.isGlobal = message.isGlobal;
         state.isMultiSelect = message.isMultiSelect;
@@ -119,6 +121,11 @@ function resolveColorToken(color) {
 function getTagStyle(tagName) {
     const def = state.definitions.find(d => d.name === tagName);
     return def;
+}
+
+function getRemarkIcon() {
+    const icon = state.remarkDefinition && state.remarkDefinition.icon;
+    return icon || 'comment';
 }
 
 function render() {
@@ -343,19 +350,67 @@ function renderBlocks() {
             content.textContent = block.text;
             el.appendChild(content);
 
+            if (block.remark) {
+                const remark = document.createElement('div');
+                remark.className = 'block-remark';
+                const remarkIcon = document.createElement('span');
+                remarkIcon.className = `codicon codicon-${getRemarkIcon()} remark-icon`;
+                remark.appendChild(remarkIcon);
+                const remarkText = document.createElement('span');
+                remarkText.className = 'remark-text';
+                remarkText.textContent = block.remark;
+                remark.appendChild(remarkText);
+                el.appendChild(remark);
+            }
+
             if (block.breadcrumb && block.breadcrumb.length > 1) {
                 const trail = block.breadcrumb.slice(0, -1);
                 const breadcrumb = document.createElement('div');
                 breadcrumb.className = 'block-breadcrumb';
-                breadcrumb.textContent = trail.join(' > ');
                 if (trail.length > 0) {
+                    const breadcrumbIcon = document.createElement('span');
+                    breadcrumbIcon.className = 'codicon codicon-list-tree breadcrumb-icon';
+                    breadcrumb.appendChild(breadcrumbIcon);
+                    const breadcrumbText = document.createElement('span');
+                    breadcrumbText.className = 'breadcrumb-text';
+                    breadcrumbText.textContent = trail.join(' > ');
+                    breadcrumb.appendChild(breadcrumbText);
                     el.appendChild(breadcrumb);
                 }
             }
 
+            const actions = document.createElement('div');
+            actions.className = 'block-actions';
+
+            const editTagsBtn = document.createElement('button');
+            editTagsBtn.className = 'action-btn edit-tags-btn';
+            editTagsBtn.innerHTML = '<span class="codicon codicon-tag"></span>';
+            editTagsBtn.title = 'Edit tags';
+            editTagsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                vscode.postMessage({
+                    type: 'editTags',
+                    uri: block.uri,
+                    line: block.line
+                });
+            });
+
+            const editRemarkBtn = document.createElement('button');
+            editRemarkBtn.className = 'action-btn edit-remark-btn';
+            editRemarkBtn.innerHTML = '<span class="codicon codicon-comment"></span>';
+            editRemarkBtn.title = 'Edit remark';
+            editRemarkBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                vscode.postMessage({
+                    type: 'editRemark',
+                    uri: block.uri,
+                    line: block.line
+                });
+            });
+
             // 删除按钮：无论是否选择标签都可使用
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
+            deleteBtn.className = 'action-btn delete-btn';
             deleteBtn.innerHTML = '<span class="codicon codicon-close"></span>';
             deleteBtn.title = 'Remove tag reference(s) from this block';
 
@@ -391,7 +446,10 @@ function renderBlocks() {
                 }
             });
 
-            el.appendChild(deleteBtn);
+            actions.appendChild(editTagsBtn);
+            actions.appendChild(editRemarkBtn);
+            actions.appendChild(deleteBtn);
+            el.appendChild(actions);
 
             el.addEventListener('click', () => {
                 vscode.postMessage({

@@ -22,6 +22,8 @@ export class TagIndexService {
   private _onDidUpdateTags = new vscode.EventEmitter<void>();
   public readonly onDidUpdateTags = this._onDidUpdateTags.event;
   private readonly defaultTagColor = "#808080";
+  private readonly defaultRemarkName = "remark";
+  private readonly defaultRemarkIcon = "comment";
 
   private constructor() {
     this.initialize();
@@ -175,6 +177,31 @@ export class TagIndexService {
     }));
   }
 
+  public getRemarkName(): string {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const name = (config.get<string>("tags.remarkName", "") || "").trim();
+    if (!name || /\s/.test(name)) {
+      return this.defaultRemarkName;
+    }
+    return name;
+  }
+
+  public getRemarkDefinition(): TagDefinition {
+    const remarkName = this.getRemarkName();
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const defs = this.normalizeDefinitions(
+      config.get<TagDefinition[]>("tags.definitions", [])
+    );
+    const existing = defs.find((def) => def.name === remarkName);
+
+    return {
+      name: remarkName,
+      color: existing?.color ?? this.defaultTagColor,
+      icon: existing?.icon ?? this.defaultRemarkIcon,
+      pinned: existing?.pinned ?? true,
+    };
+  }
+
   private countPinned(defs: TagDefinition[]): number {
     return defs.filter((def) => def.pinned).length;
   }
@@ -220,12 +247,16 @@ export class TagIndexService {
     const existingNames = new Set(existingDefs.map((d) => d.name));
     let pinnedCount = this.countPinned(existingDefs);
     const maxPinnedDisplay = this.getMaxPinnedDisplay();
+    const remarkName = this.getRemarkName();
 
     const newDefs: TagDefinition[] = [];
 
     for (const tag of tags) {
       // 只跳过已存在的标签，不再有保留的预设标签概念
       if (existingNames.has(tag)) {
+        continue;
+      }
+      if (tag === remarkName) {
         continue;
       }
 
@@ -324,9 +355,12 @@ export class TagIndexService {
   public getTagsFromSettings(): TagDefinition[] {
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
     const defs = config.get<TagDefinition[]>("tags.definitions", []);
+    const normalized = this.normalizeDefinitions(defs);
+    const remarkDef = this.getRemarkDefinition();
+    const filtered = normalized.filter((def) => def.name !== remarkDef.name);
 
     // 预设标签只用于首次初始化，不应该在删除后自动恢复
     // 用户删除标签应该真正删除，不再显示
-    return this.normalizeDefinitions(defs);
+    return [remarkDef, ...filtered];
   }
 }

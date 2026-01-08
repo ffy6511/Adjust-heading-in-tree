@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { HeadingNode, HeadingProvider } from "../providers/headingProvider";
 import { TagIndexService, TagDefinition } from "../services/tagIndexService";
 import { parseHeadings } from "../providers/parser";
+import { normalizeTagsAndRemark, updateLineWithComment } from "../utils/tagRemark";
 
 /**
  * 验证标签名称是否合法（允许中文字符、标点符号，只要不是空格就行）
@@ -219,42 +220,20 @@ async function applyTags(
   const doc = editor.document;
   const lineIndex = node.range.start.line;
   const lineText = doc.lineAt(lineIndex).text;
+  const matches = parseHeadings(lineText);
+  const existingRemark = matches[0]?.remark;
 
-  let newLineText = lineText;
-  const kind = node.kind; // "markdown" or "typst"
-
-  const tagString = tags.length > 0 ? tags.map((t) => `#${t}`).join(" ") : "";
-
-  if (kind === "markdown") {
-    const markdownTagRegex = /<!--\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)-->\s*$/;
-    const match = markdownTagRegex.exec(lineText);
-    if (match) {
-      if (tags.length > 0) {
-        newLineText = lineText.slice(0, match.index) + `<!-- ${tagString} -->`;
-      } else {
-        newLineText = lineText.slice(0, match.index).trimEnd();
-      }
-    } else {
-      if (tags.length > 0) {
-        newLineText = `${lineText.trimEnd()} <!-- ${tagString} -->`;
-      }
-    }
-  } else {
-    // typst
-    const typstTagRegex = /\/\/\s*((?:#[\w\u4e00-\u9fff\-]+\s*)+)$/;
-    const match = typstTagRegex.exec(lineText);
-    if (match) {
-      if (tags.length > 0) {
-        newLineText = lineText.slice(0, match.index) + `// ${tagString}`;
-      } else {
-        newLineText = lineText.slice(0, match.index).trimEnd();
-      }
-    } else {
-      if (tags.length > 0) {
-        newLineText = `${lineText.trimEnd()} // ${tagString}`;
-      }
-    }
-  }
+  const remarkTagName = TagIndexService.getInstance().getRemarkName();
+  const { tags: normalizedTags, remark: normalizedRemark } =
+    normalizeTagsAndRemark(tags, existingRemark, remarkTagName, {
+      ensureRemarkTag: false,
+    });
+  const newLineText = updateLineWithComment(
+    lineText,
+    node.kind,
+    normalizedTags,
+    normalizedRemark
+  );
 
   if (newLineText !== lineText) {
     const edit = new vscode.WorkspaceEdit();

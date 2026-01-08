@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.3.7",
+  "version": "0.4.0",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -71,7 +71,14 @@
       "headingNavigator": [
         {
           "id": "headingNavigator.headingTree",
-          "name": "TOC View"
+          "name": "TOC View",
+          "when": "!headingNavigator.mindmapActive"
+        },
+        {
+          "id": "headingNavigator.mindmapView",
+          "name": "Mind Map View",
+          "type": "webview",
+          "when": "headingNavigator.mindmapActive"
         },
         {
           "id": "headingNavigator.tagView",
@@ -170,6 +177,11 @@
         "icon": "$(tag)"
       },
       {
+        "command": "headingNavigator.editRemark",
+        "title": "Edit Remark",
+        "icon": "$(comment)"
+      },
+      {
         "command": "headingNavigator.refreshTags",
         "title": "Refresh Tags",
         "icon": "$(refresh)"
@@ -192,6 +204,11 @@
         "command": "headingNavigator.manageTagDefinitions",
         "title": "Manage Tags",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "headingNavigator.toggleMindmapView",
+        "title": "Toggle Mind Map View",
+        "icon": "$(symbol-class)"
       }
     ],
     "keybindings": [
@@ -261,6 +278,16 @@
           "group": "navigation@4"
         },
         {
+          "command": "headingNavigator.toggleMindmapView",
+          "when": "view == headingNavigator.headingTree",
+          "group": "navigation@5"
+        },
+        {
+          "command": "headingNavigator.toggleMindmapView",
+          "when": "view == headingNavigator.mindmapView",
+          "group": "navigation@0"
+        },
+        {
           "command": "headingNavigator.showTagViewHelp",
           "when": "view == headingNavigator.tagView",
           "group": "navigation@1"
@@ -283,8 +310,18 @@
           "group": "inline@0"
         },
         {
+          "command": "headingNavigator.editRemark",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.0 == 'editRemark'",
+          "group": "inline@0"
+        },
+        {
           "command": "headingNavigator.editTags",
           "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'editTags'",
+          "group": "inline@1"
+        },
+        {
+          "command": "headingNavigator.editRemark",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.1 == 'editRemark'",
           "group": "inline@1"
         },
         {
@@ -293,8 +330,18 @@
           "group": "inline@2"
         },
         {
+          "command": "headingNavigator.editRemark",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.2 == 'editRemark'",
+          "group": "inline@2"
+        },
+        {
           "command": "headingNavigator.editTags",
           "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'editTags'",
+          "group": "inline@3"
+        },
+        {
+          "command": "headingNavigator.editRemark",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.3 == 'editRemark'",
           "group": "inline@3"
         },
         {
@@ -303,8 +350,18 @@
           "group": "inline@4"
         },
         {
+          "command": "headingNavigator.editRemark",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.4 == 'editRemark'",
+          "group": "inline@4"
+        },
+        {
           "command": "headingNavigator.editTags",
           "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'editTags'",
+          "group": "inline@5"
+        },
+        {
+          "command": "headingNavigator.editRemark",
+          "when": "view == headingNavigator.headingTree && viewItem == headingNavigator.heading && headingNavigator.hoverButton.5 == 'editRemark'",
           "group": "inline@5"
         },
         {
@@ -543,6 +600,12 @@
           "type": "array",
           "default": [
             {
+              "name": "Remark",
+              "color": "#808080",
+              "icon": "comment-discussion-quote",
+              "pinned": true
+            },
+            {
               "name": "TODO",
               "color": "#808080",
               "icon": "circle-large-outline",
@@ -582,6 +645,11 @@
             }
           }
         },
+        "adjustHeadingInTree.tags.remarkName": {
+          "type": "string",
+          "default": "remark",
+          "description": "Default tag name used for remark-only items."
+        },
         "adjustHeadingInTree.behavior.autoClearFilterOnCursorMove": {
           "type": "boolean",
           "default": true,
@@ -606,6 +674,7 @@
           "type": "array",
           "default": [
             "editTags",
+            "editRemark",
             "filterToSubtree",
             "deleteHeading"
           ],
@@ -619,6 +688,7 @@
               "filterToSubtree",
               "openExportMenu",
               "editTags",
+              "editRemark",
               "deleteHeading"
             ]
           },
