@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0] - 2025-12-12
+
+### Feat
+
+- Add remark support for tagged headings, with default remark tags, editable remark settings, and integration in tag view/hover toolbar.
+- A default tag for remarks has been added, and custom styles in the panel are supported
+- Enhanced editing experience
+
+### Style
+
+- Enhanced editing experience
+
 ## [0.3.7] - 2025-12-12
 
 ### Feat
