@@ -127,12 +127,12 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register Tag View Help Command
   context.subscriptions.push(registerTagViewHelpCommand());
 
-  // Register Toggle Tag Selection Command
+  // Register Toggle Tag Edit Mode Command
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "headingNavigator.toggleTagSelection",
+      "headingNavigator.toggleTagEditMode",
       () => {
-        tagViewProvider.toggleMultiSelectMode();
+        tagViewProvider.toggleEditMode();
       }
     )
   );

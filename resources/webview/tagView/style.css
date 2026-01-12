@@ -292,3 +292,42 @@ body {
     hsl(from var(--vscode-descriptionForeground) h s l / 0.1);
   margin: 4px 0;
 }
+
+.edit-actions-container {
+  display: flex;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  background-color: var(--vscode-sideBar-background);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+}
+
+.edit-actions-container button {
+  background: none;
+  border: none;
+  color: var(--vscode-icon-foreground);
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.edit-actions-container button:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.block-content-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.select-icon {
+  font-size: 1.2em;
+  color: var(--vscode-icon-foreground);
+  opacity: 0.7;
+}
+
+.block-item.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+}

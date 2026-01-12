@@ -21,8 +21,8 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
   // 作用域状态：true = 全局（工作区），false = 当前文件
   private _isGlobalScope = true;
-  // 多选模式状态：true = 多选，false = 单选
-  private _isMultiSelectMode = false;
+  // 编辑模式状态：true = 编辑，false = 正常
+  private _isEditMode = false;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -77,15 +77,20 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * 切换多选模式
+   * 切换编辑模式
    */
-  public toggleMultiSelectMode(): void {
-    this._isMultiSelectMode = !this._isMultiSelectMode;
+  public toggleEditMode(): void {
+    this._isEditMode = !this._isEditMode;
+    void vscode.commands.executeCommand(
+      "setContext",
+      "headingNavigator.tagViewInEditMode",
+      this._isEditMode
+    );
     // 发送消息给webview更新状态
     if (this._view) {
       this._view.webview.postMessage({
-        type: "toggleMultiSelectFromExtension",
-        enabled: this._isMultiSelectMode,
+        type: "toggleEditModeFromExtension",
+        enabled: this._isEditMode,
       });
     }
   }
@@ -114,8 +119,8 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           this._tagService.scanWorkspace();
           break;
         }
-        case "toggleMultiSelect": {
-          this._isMultiSelectMode = data.enabled;
+        case "toggleEditMode": {
+          this._isEditMode = data.enabled;
           break;
         }
         case "toggleScope": {
@@ -137,6 +142,20 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             "headingNavigator.editRemark"
           );
           break;
+        }
+        case "batchRemoveTags": {
+          for (const item of data.items) {
+            await this.removeTagReferences(item.uri, item.line, item.tagNames);
+          }
+          break;
+        }
+        case "createFileFromItems": {
+          await this.createFileFromItems(data.items);
+          break;
+        }
+        case "showInformationMessage": {
+            vscode.window.showInformationMessage(data.message);
+            break;
         }
       }
     });
@@ -181,6 +200,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             uri: b.uri.toString(),
             fsPath: b.uri.fsPath,
             fileName: path.basename(b.uri.fsPath),
+            tags: b.tags,
             breadcrumb:
               b.breadcrumb ??
               this._tagService.getBreadcrumb(b.uri, b.line) ??
@@ -209,6 +229,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             uri: b.uri.toString(),
             fsPath: b.uri.fsPath,
             fileName: path.basename(b.uri.fsPath),
+            tags: b.tags,
             breadcrumb:
               b.breadcrumb ??
               this._tagService.getBreadcrumb(b.uri, b.line) ??
@@ -230,7 +251,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       remarkDefinition: this._tagService.getRemarkDefinition(),
       data: payload,
       isGlobal: this._isGlobalScope,
-      isMultiSelect: this._isMultiSelectMode,
+      isEditMode: this._isEditMode,
       maxPinnedDisplay: this.getMaxPinnedDisplay(),
       currentFileName: activeUri ? path.basename(activeUri.fsPath) : null,
     });
@@ -328,8 +349,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         "main.js"
       )
     );
-
-    return `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -353,6 +373,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             </button>
         </div>
     </div>
+    <div id="edit-mode-actions" class="edit-actions-container" style="display: none;">
+        <button id="batch-delete-btn" title="Remove selected tags from items"><span class="codicon codicon-trash"></span></button>
+        <button id="create-file-btn" title="Create a new file from selected items"><span class="codicon codicon-new-file"></span></button>
+    </div>
     <div id="tags" class="tags-container"></div>
     <div id="blocks" class="block-list"></div>
 
@@ -362,6 +386,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     <script src="${scriptUri}"></script>
 </body>
 </html>`;
+    return html;
   }
 
   /**
@@ -415,5 +440,134 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         }`
       );
     }
+  }
+
+  private async createFileFromItems(
+    items: any[],
+  ): Promise<void> {
+    if (!items || items.length === 0) {
+      vscode.window.showInformationMessage("No items selected.");
+      return;
+    }
+
+    const newTitle = await vscode.window.showInputBox({
+        prompt: "Enter an optional title for the new file.",
+        placeHolder: "e.g., My New Chapter (optional, press Enter to skip)",
+    });
+
+    // If the user presses Escape, abort the operation.
+    if (newTitle === undefined) {
+        return;
+    }
+
+    try {
+      const { imports, content } = await this.extractContentFromItems(items);
+
+      let finalContent = "";
+      if (newTitle && newTitle.trim()) {
+        finalContent = `= ${newTitle.trim()}\n\n${content}`;
+      } else {
+        finalContent = content;
+      }
+
+      const fullContent = `${imports}\n\n${finalContent}`;
+
+      const newDoc = await vscode.workspace.openTextDocument({
+        content: fullContent,
+        language: "typst",
+      });
+      await vscode.window.showTextDocument(newDoc);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to create file: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  private async extractContentFromItems(items: any[]): Promise<{ imports: string, content: string }> {
+    const uniqueImports = new Set<string>();
+    const contentParts: string[] = [];
+
+    const itemsByFile = this.groupItemsByFile(items);
+
+    for (const [uriStr, fileItems] of Object.entries(itemsByFile)) {
+      const uri = vscode.Uri.parse(uriStr);
+      const document = await vscode.workspace.openTextDocument(uri);
+      const lines = document.getText().split(/\r?\n/);
+
+      // Extract imports and settings from the file
+      this.extractFileHeaders(lines).forEach(header => uniqueImports.add(header));
+
+      // Sort items by line number to process them in order
+      fileItems.sort((a, b) => a.line - b.line);
+
+      for (const item of fileItems) {
+        const breadcrumb = this._tagService.getBreadcrumb(uri, item.line) ?? [];
+        const itemContent = this.getItemContent(document, lines, item.line, breadcrumb);
+        contentParts.push(itemContent);
+      }
+    }
+
+    return {
+      imports: Array.from(uniqueImports).join("\n"),
+      content: contentParts.join("\n\n"),
+    };
+  }
+
+  private groupItemsByFile(items: any[]): Record<string, any[]> {
+    return items.reduce((acc, item) => {
+      if (!acc[item.uri]) {
+        acc[item.uri] = [];
+      }
+      acc[item.uri].push(item);
+      return acc;
+    }, {} as Record<string, any[]>);
+  }
+
+  private extractFileHeaders(lines: string[]): string[] {
+    const headers: string[] = [];
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("#import") || trimmedLine.startsWith("#set") || trimmedLine.startsWith("#show")) {
+        headers.push(line);
+      }
+      if (trimmedLine.startsWith("=") || (trimmedLine.length > 0 && !trimmedLine.startsWith("#"))) {
+        // Stop when we hit the first heading or content line
+        break;
+      }
+    }
+    return headers;
+  }
+
+  private getItemContent(document: vscode.TextDocument, lines: string[], startLine: number, breadcrumb: string[]): string {
+    const contentLines: string[] = [];
+
+    // 1. Add breadcrumb headings
+    breadcrumb.forEach((title, index) => {
+        // We skip the last element of the breadcrumb because it's the item itself
+        if (index < breadcrumb.length - 1) {
+            const level = index + 1;
+            contentLines.push(`${"=".repeat(level)} ${title}`);
+        }
+    });
+
+    // 2. Find the end of the block for the actual item
+    let endLine = startLine;
+    for (let i = startLine + 1; i < lines.length; i++) {
+        const lineText = lines[i];
+        const match = parseHeadings(lineText);
+        // Stop if we find another heading of the same or higher level
+        if (match.length > 0 && match[0].level <= breadcrumb.length) {
+            break;
+        }
+        endLine = i;
+    }
+
+    const blockRange = new vscode.Range(startLine, 0, endLine, lines[endLine].length);
+    contentLines.push(document.getText(blockRange));
+
+    return contentLines.join("\n");
   }
 }

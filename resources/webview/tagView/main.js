@@ -6,9 +6,10 @@ let state = {
     remarkDefinition: null,
     data: {},
     selectedTags: new Set(),
+    selectedItems: new Set(),
     searchQuery: "",
     isGlobal: false,
-    isMultiSelect: false,
+    isEditMode: false,
     currentFileName: null,
     maxPinnedDisplay: 6
 };
@@ -33,7 +34,7 @@ window.addEventListener('message', event => {
         state.remarkDefinition = message.remarkDefinition || null;
         state.data = message.data;
         state.isGlobal = message.isGlobal;
-        state.isMultiSelect = message.isMultiSelect;
+        state.isEditMode = message.isEditMode;
         state.currentFileName = message.currentFileName;
         state.maxPinnedDisplay = Math.max(1, message.maxPinnedDisplay ?? 6);
         
@@ -53,14 +54,11 @@ window.addEventListener('message', event => {
         state.isGlobal = message.isGlobal;
         updateScopeBtn();
         // Scope 改变通常会伴随后续的 update 消息来更新 tags 数据
-    } else if (message.type === 'toggleMultiSelectFromExtension') {
-        state.isMultiSelect = message.enabled;
+    } else if (message.type === 'toggleEditModeFromExtension') {
+        state.isEditMode = message.enabled;
         updateSelectBtn();
-        // 切换到单选模式时，只保留第一个选中的标签
-        if (!state.isMultiSelect && state.selectedTags.size > 1) {
-            const first = Array.from(state.selectedTags)[0];
-            state.selectedTags.clear();
-            state.selectedTags.add(first);
+        if (!state.isEditMode) {
+            state.selectedItems.clear();
         }
         render();
     }
@@ -76,15 +74,12 @@ searchInput.addEventListener('input', (e) => {
 });
 
 selectBtn.addEventListener('click', () => {
-    state.isMultiSelect = !state.isMultiSelect;
+    state.isEditMode = !state.isEditMode;
     updateSelectBtn();
-    // 切换到单选模式时，只保留第一个选中的标签
-    if (!state.isMultiSelect && state.selectedTags.size > 1) {
-        const first = Array.from(state.selectedTags)[0];
-        state.selectedTags.clear();
-        state.selectedTags.add(first);
+    if (!state.isEditMode) {
+        state.selectedItems.clear();
     }
-    vscode.postMessage({ type: 'toggleMultiSelect', enabled: state.isMultiSelect });
+    vscode.postMessage({ type: 'toggleEditMode', enabled: state.isEditMode });
     render();
 });
 
@@ -99,12 +94,15 @@ function updateScopeBtn() {
 }
 
 function updateSelectBtn() {
-    if (state.isMultiSelect) {
+    const editActions = document.getElementById('edit-mode-actions');
+    if (state.isEditMode) {
         document.getElementById('select-icon-mult').classList.add('active');
         document.getElementById('select-icon-single').classList.remove('active');
+        editActions.style.display = 'flex';
     } else {
         document.getElementById('select-icon-single').classList.add('active');
         document.getElementById('select-icon-mult').classList.remove('active');
+        editActions.style.display = 'none';
     }
 }
 
@@ -133,25 +131,18 @@ function render() {
     renderBlocks();
 }
 
-// 计算某个区块关联的标签集合：有选中标签时直接使用选中的，否则聚合所有包含该区块的标签
+// 计算某个区块关联的标签集合：优先返回 block 自身携带的标签列表，其次，如果有选中的标签，则返回选中的标签
 function getTagNamesForBlock(block) {
+    if (block && block.tags && block.tags.length > 0) {
+        return block.tags;
+    }
+
+    // Fallback for batch deletion if the frontend needs to decide which tags to remove
     if (state.selectedTags.size > 0) {
         return Array.from(state.selectedTags);
     }
 
-    const tagSet = new Set();
-    Object.entries(state.data).forEach(([tagName, blocks]) => {
-        const list = blocks || [];
-        if (list.some(b => b.uri === block.uri && b.line === block.line)) {
-            tagSet.add(tagName);
-        }
-    });
-
-    if (tagSet.size === 0 && block.tagName) {
-        tagSet.add(block.tagName);
-    }
-
-    return Array.from(tagSet);
+    return [];
 }
 
 function getColorForBlock(block) {
@@ -236,15 +227,19 @@ function renderTags() {
         el.style.color = 'var(--vscode-foreground)';
 
         el.addEventListener('click', () => {
-            if (state.isMultiSelect) {
-                // 多选模式：切换选中状态
-                if (state.selectedTags.has(tag)) {
-                    state.selectedTags.delete(tag);
+            if (state.isEditMode) {
+                const itemsForTag = state.data[tag] || [];
+                const allItemsInTagAreSelected = itemsForTag.every(item => state.selectedItems.has(`${item.uri}:${item.line}`));
+
+                if (allItemsInTagAreSelected) {
+                    // If all are selected, deselect them all
+                    itemsForTag.forEach(item => state.selectedItems.delete(`${item.uri}:${item.line}`));
                 } else {
-                    state.selectedTags.add(tag);
+                    // Otherwise, select them all
+                    itemsForTag.forEach(item => state.selectedItems.add(`${item.uri}:${item.line}`));
                 }
             } else {
-                // 单选模式：点击已选中的取消选中，否则替换选中
+                // Normal mode: toggle tag selection for filtering
                 if (state.selectedTags.has(tag)) {
                     state.selectedTags.clear();
                 } else {
@@ -252,7 +247,11 @@ function renderTags() {
                     state.selectedTags.add(tag);
                 }
             }
-            render();
+            if (state.isEditMode) {
+                renderBlocks();
+            } else {
+                render();
+            }
         });
 
         tagsContainer.appendChild(el);
@@ -341,14 +340,30 @@ function renderBlocks() {
         }
 
         group.blocks.forEach(block => {
+            const itemUniqueId = `${block.uri}:${block.line}`;
+            const isSelected = state.selectedItems.has(itemUniqueId);
+
             const el = document.createElement('div');
             el.className = 'block-item';
+            if (isSelected) {
+                el.classList.add('selected');
+            }
             el.style.borderLeft = `3px solid color-mix(in srgb, ${getColorForBlock(block)} 60%, transparent)`;
+
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = 'block-content-wrapper';
+
+            if (state.isEditMode) {
+                const selectIcon = document.createElement('span');
+                selectIcon.className = `codicon select-icon ${isSelected ? 'codicon-pass-filled' : 'codicon-circle'}`;
+                contentWrapper.appendChild(selectIcon);
+            }
 
             const content = document.createElement('div');
             content.className = 'block-content';
             content.textContent = block.text;
-            el.appendChild(content);
+            contentWrapper.appendChild(content);
+            el.appendChild(contentWrapper);
 
             if (block.remark) {
                 const remark = document.createElement('div');
@@ -446,17 +461,30 @@ function renderBlocks() {
                 }
             });
 
-            actions.appendChild(editTagsBtn);
-            actions.appendChild(editRemarkBtn);
-            actions.appendChild(deleteBtn);
-            el.appendChild(actions);
+            if (!state.isEditMode) {
+                actions.appendChild(editTagsBtn);
+                actions.appendChild(editRemarkBtn);
+                actions.appendChild(deleteBtn);
+                el.appendChild(actions);
+            }
 
             el.addEventListener('click', () => {
-                vscode.postMessage({
-                    type: 'openLocation',
-                    uri: block.uri,
-                    line: block.line
-                });
+                if (state.isEditMode) {
+                    // In edit mode, toggle selection
+                    if (state.selectedItems.has(itemUniqueId)) {
+                        state.selectedItems.delete(itemUniqueId);
+                    } else {
+                        state.selectedItems.add(itemUniqueId);
+                    }
+                    renderBlocks(); // Re-render to update the icon
+                } else {
+                    // In normal mode, open the location
+                    vscode.postMessage({
+                        type: 'openLocation',
+                        uri: block.uri,
+                        line: block.line
+                    });
+                }
             });
 
             wrapper.appendChild(el);
@@ -471,3 +499,61 @@ function renderBlocks() {
 
 // Initial request (optional if backend pushes on connect)
 vscode.postMessage({ type: 'refresh' });
+
+// Add event listeners for new action buttons
+const batchDeleteBtn = document.getElementById('batch-delete-btn');
+const createFileBtn = document.getElementById('create-file-btn');
+
+batchDeleteBtn.addEventListener('click', () => {
+    if (state.selectedItems.size === 0) {
+        vscode.postMessage({ type: 'showInformationMessage', message: 'No items selected.' });
+        return;
+    }
+    const itemsToDelete = [];
+    const allBlocks = Object.values(state.data).flat();
+    state.selectedItems.forEach(id => {
+        const [uri, lineStr] = id.split(':');
+        const line = parseInt(lineStr, 10);
+        const block = allBlocks.find(b => b.uri === uri && b.line === line);
+        if (block) {
+            itemsToDelete.push({
+                uri: block.uri,
+                line: block.line,
+                tagNames: getTagNamesForBlock(block)
+            });
+        }
+    });
+    vscode.postMessage({
+        type: 'batchRemoveTags',
+        items: itemsToDelete
+    });
+    state.selectedItems.clear();
+    render();
+});
+
+createFileBtn.addEventListener('click', () => {
+    if (state.selectedItems.size === 0) {
+        vscode.postMessage({ type: 'showInformationMessage', message: 'No items selected.' });
+        return;
+    }
+
+    // The webview cannot directly trigger a vscode.window.showInputBox.
+    // So we'll send a message to the extension to handle it.
+    // For now, we will send an empty title, but the extension side could be modified to prompt.
+    const itemsToCreate = [];
+    const allBlocks = Object.values(state.data).flat();
+     state.selectedItems.forEach(id => {
+        const [uri, lineStr] = id.split(':');
+        const line = parseInt(lineStr, 10);
+        const block = allBlocks.find(b => b.uri === uri && b.line === line);
+        if (block) {
+            itemsToCreate.push(block);
+        }
+    });
+
+    vscode.postMessage({
+        type: 'createFileFromItems',
+        items: itemsToCreate,
+        newTitle: '' // The extension will prompt the user for a title
+    });
+});
