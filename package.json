@@ -196,6 +196,10 @@
         "title": "Toggle Tag Selection Mode"
       },
       {
+        "command": "headingNavigator.toggleTagEditMode",
+        "title": "Toggle Tag Edit Mode"
+      },
+      {
         "command": "headingNavigator.showTagViewHelp",
         "title": "Tag View Help",
         "icon": "$(question)"
@@ -301,6 +305,12 @@
           "command": "headingNavigator.refreshTags",
           "when": "view == headingNavigator.tagView",
           "group": "navigation@3"
+        },
+        {
+          "command": "headingNavigator.toggleTagEditMode",
+          "when": "view == headingNavigator.tagView",
+          "group": "navigation@4",
+          "icon": "$(edit)"
         }
       ],
       "view/item/context": [
