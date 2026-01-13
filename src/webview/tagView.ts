@@ -29,6 +29,12 @@ interface DocumentIndex {
   indexByLine: Map<number, number>;
 }
 
+interface SelectedHeadingSlice {
+  key: string;
+  document: vscode.TextDocument;
+  range: vscode.Range;
+}
+
 export class TagViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "headingNavigator.tagView";
   private _view?: vscode.WebviewView;
@@ -361,26 +367,6 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     <title>Tag View</title>
 </head>
 <body>
-    <div id="batch-toolbar" class="batch-toolbar hidden">
-        <div class="batch-row">
-            <div class="batch-summary">
-                <span id="batch-count" class="batch-count">0 selected</span>
-                <span id="batch-hint" class="batch-hint">Select tags or items to start.</span>
-            </div>
-            <div class="batch-actions">
-                <button class="batch-btn" id="batch-delete-btn" title="Remove tag references from selected items">Remove Tags</button>
-                <button class="batch-btn primary" id="batch-newfile-btn" title="Create a new file from selected items">New File</button>
-            </div>
-        </div>
-        <div id="batch-input-row" class="batch-input-row hidden">
-            <input type="text" id="batch-input" class="batch-input" placeholder="Optional title for a new file">
-            <div class="batch-input-actions">
-                <button class="batch-btn" id="batch-input-cancel">Cancel</button>
-                <button class="batch-btn primary" id="batch-input-confirm">Create</button>
-            </div>
-        </div>
-        <div id="batch-input-hint" class="batch-hint hidden">Leave blank to keep original heading levels.</div>
-    </div>
     <div class="header">
         <input type="text" id="search" class="search-box" placeholder="Search tags...">
         <div class="search-controls">
@@ -397,6 +383,34 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
                 <span class="codicon codicon-checklist toggle-btn-icon" id="edit-icon-on"></span>
             </button>
         </div>
+    </div>
+    <div id="batch-toolbar" class="batch-toolbar hidden">
+        <div class="batch-row">
+            <div class="batch-summary">
+                <span id="batch-count" class="batch-count">0</span>
+                <span class="batch-count-icon codicon codicon-checklist"></span>
+                <span class="batch-separator">|</span>
+                <button class="batch-checkbox" id="batch-select-all" title="Select all items">
+                    <span class="codicon codicon-check"></span>
+                </button>
+            </div>
+            <div class="batch-actions">
+                <button class="batch-icon-btn" id="batch-delete-btn" title="Remove tag references">
+                    <span class="codicon codicon-trash"></span>
+                </button>
+                <button class="batch-icon-btn" id="batch-newfile-btn" title="Create a new file">
+                    <span class="codicon codicon-new-file"></span>
+                </button>
+            </div>
+        </div>
+        <div id="batch-input-row" class="batch-input-row hidden">
+            <input type="text" id="batch-input" class="batch-input" placeholder="Optional title for a new file">
+            <div class="batch-input-actions">
+                <button class="batch-btn" id="batch-input-cancel">Cancel</button>
+                <button class="batch-btn primary" id="batch-input-confirm">Create</button>
+            </div>
+        </div>
+        <div id="batch-input-hint" class="batch-hint hidden">Leave blank to keep original heading levels.</div>
     </div>
     <div id="tags" class="tags-container"></div>
     <div id="blocks" class="block-list"></div>
@@ -584,7 +598,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       if (!item?.uri || typeof item.line !== "number") {
         continue;
       }
-      const key = `${item.uri}:${item.line}`;
+      const key = this.getBatchItemKey(item);
       if (seen.has(key)) {
         continue;
       }
@@ -596,8 +610,11 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async collectBlocksText(items: BatchItem[]): Promise<string> {
+    // Build selection ranges per document and skip nested headings to avoid duplicates.
     const parts: string[] = [];
     const documentCache = new Map<string, DocumentIndex>();
+    const slicesByDocument = new Map<string, SelectedHeadingSlice[]>();
+    const slicesByKey = new Map<string, SelectedHeadingSlice>();
 
     for (const item of items) {
       const uri = vscode.Uri.parse(item.uri);
@@ -609,13 +626,68 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
       // Extract heading text with its subtree until the next same-or-higher level heading.
       const range = this.getHeadingRange(entry.document, entry.matches, index);
-      const text = entry.document.getText(range).trimEnd();
+      const slice: SelectedHeadingSlice = {
+        key: this.getBatchItemKey(item),
+        document: entry.document,
+        range,
+      };
+      slicesByKey.set(slice.key, slice);
+      const docKey = entry.document.uri.toString();
+      const bucket = slicesByDocument.get(docKey) ?? [];
+      bucket.push(slice);
+      slicesByDocument.set(docKey, bucket);
+    }
+
+    const nestedKeys = this.getNestedSelectionKeys(slicesByDocument);
+    for (const item of items) {
+      const key = this.getBatchItemKey(item);
+      if (nestedKeys.has(key)) {
+        continue;
+      }
+      const slice = slicesByKey.get(key);
+      if (!slice) {
+        continue;
+      }
+      const text = slice.document.getText(slice.range).trimEnd();
       if (text.length > 0) {
         parts.push(text);
       }
     }
 
     return parts.join("\n\n");
+  }
+
+  // Skip headings that are fully contained in another selected heading.
+  private getNestedSelectionKeys(
+    entriesByDocument: Map<string, SelectedHeadingSlice[]>
+  ): Set<string> {
+    const nested = new Set<string>();
+
+    for (const entries of entriesByDocument.values()) {
+      const sorted = [...entries].sort((a, b) => {
+        const startDiff = a.range.start.line - b.range.start.line;
+        if (startDiff !== 0) {
+          return startDiff;
+        }
+        return b.range.end.line - a.range.end.line;
+      });
+
+      let currentEnd = -1;
+      for (const entry of sorted) {
+        const startLine = entry.range.start.line;
+        if (startLine < currentEnd) {
+          nested.add(entry.key);
+          continue;
+        }
+        currentEnd = entry.range.end.line;
+      }
+    }
+
+    return nested;
+  }
+
+  private getBatchItemKey(item: BatchItem): string {
+    return `${item.uri}:${item.line}`;
   }
 
   private async getDocumentIndex(

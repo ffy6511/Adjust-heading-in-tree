@@ -22,7 +22,7 @@ body {
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   border-radius: 6px;
   border: 1px solid var(--vscode-widget-border);
   background: color-mix(
@@ -37,25 +37,32 @@ body {
 .batch-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 .batch-summary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  gap: 6px;
 }
 .batch-count {
   font-weight: 600;
   color: var(--vscode-foreground);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.batch-count-icon {
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+}
+.batch-separator {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.6;
 }
 .batch-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
 }
 .batch-btn {
   padding: 4px 8px;
@@ -73,6 +80,57 @@ body {
 }
 .batch-btn:disabled {
   opacity: 0.5;
+  cursor: default;
+}
+.batch-icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-icon-foreground);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+.batch-icon-btn:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground);
+}
+.batch-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.batch-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid
+    color-mix(in srgb, var(--vscode-descriptionForeground) 60%, transparent);
+  background: transparent;
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+.batch-checkbox .codicon {
+  font-size: 12px;
+  opacity: 0;
+}
+.batch-checkbox.checked {
+  border-color: var(--vscode-button-background);
+  background: var(--vscode-button-background);
+}
+.batch-checkbox.checked .codicon {
+  opacity: 1;
+}
+.batch-checkbox:disabled {
+  opacity: 0.4;
   cursor: default;
 }
 .batch-input-row {
@@ -236,7 +294,7 @@ body {
   position: relative; /* For absolute positioning of action buttons */
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   padding: 4px 8px;
 
   background: transparent;
@@ -332,21 +390,27 @@ body {
   transition-delay: 0.3s;
 }
 .select-indicator {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 60%, transparent);
-  background: transparent;
+  border: 1px solid
+    color-mix(in srgb, var(--vscode-descriptionForeground) 55%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vscode-descriptionForeground) 6%,
+    transparent
+  );
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 9px;
   opacity: 0;
   flex-shrink: 0;
   transition: opacity 0.2s ease, background 0.2s ease, border 0.2s ease;
 }
 .select-indicator .codicon {
   opacity: 0;
+  transform: scale(0.85);
 }
 body.edit-mode .select-indicator {
   opacity: 0.7;
@@ -356,6 +420,8 @@ body.edit-mode .block-item.selected .select-indicator {
   border-color: var(--vscode-button-background);
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--vscode-button-background) 20%, transparent);
 }
 body.edit-mode .block-item.selected .select-indicator .codicon {
   opacity: 1;

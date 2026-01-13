@@ -6,6 +6,7 @@ let state = {
     remarkDefinition: null,
     data: {},
     selectedTags: new Set(),
+    previousSelectedTags: new Set(),
     selectedItems: new Map(),
     batchSelectedTags: new Set(),
     blockIndex: new Map(),
@@ -26,7 +27,7 @@ const scopeBtn = document.getElementById('scope-btn');
 const editBtn = document.getElementById('edit-btn');
 const batchToolbar = document.getElementById('batch-toolbar');
 const batchCount = document.getElementById('batch-count');
-const batchHint = document.getElementById('batch-hint');
+const batchSelectAllBtn = document.getElementById('batch-select-all');
 const batchDeleteBtn = document.getElementById('batch-delete-btn');
 const batchNewFileBtn = document.getElementById('batch-newfile-btn');
 const batchInputRow = document.getElementById('batch-input-row');
@@ -112,6 +113,10 @@ editBtn.addEventListener('click', () => {
     setEditMode(!state.isEditMode);
 });
 
+batchSelectAllBtn.addEventListener('click', () => {
+    toggleSelectAll();
+});
+
 batchDeleteBtn.addEventListener('click', () => {
     const selectedItems = getSelectedItemsInOrder();
     if (selectedItems.length === 0) {
@@ -189,9 +194,16 @@ function setEditMode(enabled) {
     state.isEditMode = enabled;
     document.body.classList.toggle('edit-mode', enabled);
     if (!enabled) {
+        if (state.previousSelectedTags.size > 0) {
+            state.selectedTags = new Set(state.previousSelectedTags);
+            state.previousSelectedTags.clear();
+        }
         state.selectedItems.clear();
         state.batchSelectedTags.clear();
         hideBatchInput();
+    } else {
+        state.previousSelectedTags = new Set(state.selectedTags);
+        state.selectedTags.clear();
     }
     updateEditBtn();
     updateBatchToolbar();
@@ -399,16 +411,41 @@ function updateBatchToolbar() {
 
     batchToolbar.classList.remove('hidden');
     const count = state.selectedItems.size;
-    batchCount.textContent = `${count} selected`;
+    batchCount.textContent = `${count}`;
     batchDeleteBtn.disabled = count === 0;
     batchNewFileBtn.disabled = count === 0;
-
+    updateSelectAllState();
     if (count === 0) {
-        batchHint.textContent = 'Select tags or items to start.';
         hideBatchInput();
-    } else {
-        batchHint.textContent = 'Ready to apply batch actions.';
     }
+}
+
+function updateSelectAllState() {
+    const { ordered } = getVisibleBlocks();
+    const total = ordered.length;
+    const allSelected = total > 0 && state.selectedItems.size === total;
+    batchSelectAllBtn.classList.toggle('checked', allSelected);
+    batchSelectAllBtn.disabled = total === 0;
+    batchSelectAllBtn.title = allSelected ? 'Clear selection' : 'Select all items';
+}
+
+function toggleSelectAll() {
+    const { ordered } = getVisibleBlocks();
+    if (ordered.length === 0) {
+        return;
+    }
+
+    const allSelected = state.selectedItems.size === ordered.length;
+    if (allSelected) {
+        state.selectedItems.clear();
+    } else {
+        ordered.forEach(block => {
+            state.selectedItems.set(getBlockKey(block), block);
+        });
+    }
+
+    updateBatchToolbar();
+    renderBlocks();
 }
 
 function hideBatchInput() {
