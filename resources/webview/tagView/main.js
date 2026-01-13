@@ -6,9 +6,13 @@ let state = {
     remarkDefinition: null,
     data: {},
     selectedTags: new Set(),
+    selectedItems: new Map(),
+    batchSelectedTags: new Set(),
+    blockIndex: new Map(),
     searchQuery: "",
     isGlobal: false,
     isMultiSelect: false,
+    isEditMode: false,
     currentFileName: null,
     maxPinnedDisplay: 6
 };
@@ -19,6 +23,17 @@ const blocksContainer = document.getElementById('blocks');
 const searchInput = document.getElementById('search');
 const selectBtn = document.getElementById('select-btn');
 const scopeBtn = document.getElementById('scope-btn');
+const editBtn = document.getElementById('edit-btn');
+const batchToolbar = document.getElementById('batch-toolbar');
+const batchCount = document.getElementById('batch-count');
+const batchHint = document.getElementById('batch-hint');
+const batchDeleteBtn = document.getElementById('batch-delete-btn');
+const batchNewFileBtn = document.getElementById('batch-newfile-btn');
+const batchInputRow = document.getElementById('batch-input-row');
+const batchInput = document.getElementById('batch-input');
+const batchInputCancel = document.getElementById('batch-input-cancel');
+const batchInputConfirm = document.getElementById('batch-input-confirm');
+const batchInputHint = document.getElementById('batch-input-hint');
 
 // 消息处理
 window.addEventListener('message', event => {
@@ -36,7 +51,10 @@ window.addEventListener('message', event => {
         state.isMultiSelect = message.isMultiSelect;
         state.currentFileName = message.currentFileName;
         state.maxPinnedDisplay = Math.max(1, message.maxPinnedDisplay ?? 6);
-        
+        state.blockIndex = buildBlockIndex(message.data);
+        state.selectedItems = reconcileSelectedItems(state.selectedItems, state.blockIndex);
+        document.body.classList.toggle('edit-mode', state.isEditMode);
+
         // 确保 selectedTags 只包含存在的 tags
         // let validTags = new Set();
         // state.selectedTags.forEach(t => {
@@ -48,6 +66,8 @@ window.addEventListener('message', event => {
 
         updateScopeBtn();
         updateSelectBtn();
+        updateEditBtn();
+        updateBatchToolbar();
         render();
     } else if (message.type === 'scopeChanged') {
         state.isGlobal = message.isGlobal;
@@ -88,6 +108,53 @@ selectBtn.addEventListener('click', () => {
     render();
 });
 
+editBtn.addEventListener('click', () => {
+    setEditMode(!state.isEditMode);
+});
+
+batchDeleteBtn.addEventListener('click', () => {
+    const selectedItems = getSelectedItemsInOrder();
+    if (selectedItems.length === 0) {
+        return;
+    }
+    vscode.postMessage({
+        type: 'batchRemoveTagReferences',
+        items: selectedItems.map(item => ({
+            uri: item.uri,
+            line: item.line
+        })),
+        tagNames: Array.from(state.batchSelectedTags)
+    });
+});
+
+batchNewFileBtn.addEventListener('click', () => {
+    if (batchInputRow.classList.contains('hidden')) {
+        batchInputRow.classList.remove('hidden');
+        batchInputHint.classList.remove('hidden');
+        batchInput.focus();
+        return;
+    }
+    submitBatchInput();
+});
+
+batchInputCancel.addEventListener('click', () => {
+    hideBatchInput();
+});
+
+batchInputConfirm.addEventListener('click', () => {
+    submitBatchInput();
+});
+
+batchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        submitBatchInput();
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        hideBatchInput();
+    }
+});
+
 function updateScopeBtn() {
     if (state.isGlobal) {
         document.getElementById('scope-icon-globe').classList.add('active');
@@ -108,6 +175,29 @@ function updateSelectBtn() {
     }
 }
 
+function updateEditBtn() {
+    if (state.isEditMode) {
+        document.getElementById('edit-icon-on').classList.add('active');
+        document.getElementById('edit-icon-off').classList.remove('active');
+    } else {
+        document.getElementById('edit-icon-off').classList.add('active');
+        document.getElementById('edit-icon-on').classList.remove('active');
+    }
+}
+
+function setEditMode(enabled) {
+    state.isEditMode = enabled;
+    document.body.classList.toggle('edit-mode', enabled);
+    if (!enabled) {
+        state.selectedItems.clear();
+        state.batchSelectedTags.clear();
+        hideBatchInput();
+    }
+    updateEditBtn();
+    updateBatchToolbar();
+    render();
+}
+
 function resolveColorToken(color) {
     if (!color) {
         return "var(--vscode-descriptionForeground)";
@@ -116,6 +206,33 @@ function resolveColorToken(color) {
         return `var(--vscode-${color.replace(/\./g, "-")})`;
     }
     return color;
+}
+
+function getBlockKey(block) {
+    return `${block.uri}:${block.line}`;
+}
+
+function buildBlockIndex(data) {
+    const index = new Map();
+    Object.values(data || {}).forEach((blocks) => {
+        (blocks || []).forEach((block) => {
+            const key = getBlockKey(block);
+            if (!index.has(key)) {
+                index.set(key, block);
+            }
+        });
+    });
+    return index;
+}
+
+function reconcileSelectedItems(selectedItems, blockIndex) {
+    const next = new Map();
+    selectedItems.forEach((value, key) => {
+        if (blockIndex.has(key)) {
+            next.set(key, blockIndex.get(key));
+        }
+    });
+    return next;
 }
 
 function getTagStyle(tagName) {
@@ -156,7 +273,7 @@ function getTagNamesForBlock(block) {
 
 function getColorForBlock(block) {
     // 优先使用当前选中的标签颜色
-    if (state.selectedTags.size > 0) {
+    if (!state.isEditMode && state.selectedTags.size > 0) {
         const selected = Array.from(state.selectedTags)[0];
         const def = getTagStyle(selected);
         return resolveColorToken(def?.color);
@@ -166,6 +283,157 @@ function getColorForBlock(block) {
     const firstTag = tags[0];
     const def = firstTag ? getTagStyle(firstTag) : undefined;
     return resolveColorToken(def?.color);
+}
+
+function getBlockCandidates() {
+    let candidates = [];
+
+    if (!state.isEditMode && state.selectedTags.size > 0) {
+        const selectedArray = Array.from(state.selectedTags);
+        candidates = state.data[selectedArray[0]] || [];
+
+        for (let i = 1; i < selectedArray.length; i++) {
+            const nextTagBlocks = state.data[selectedArray[i]] || [];
+            const nextSet = new Set(nextTagBlocks.map(b => b.uri + ':' + b.line));
+            candidates = candidates.filter(b => nextSet.has(b.uri + ':' + b.line));
+        }
+    } else {
+        const seen = new Set();
+        for (const tag of Object.keys(state.data)) {
+            const blocks = state.data[tag] || [];
+            for (const block of blocks) {
+                const key = getBlockKey(block);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    candidates.push(block);
+                }
+            }
+        }
+    }
+
+    return candidates;
+}
+
+function buildBlockGroups(candidates) {
+    const groups = [];
+    if (state.isGlobal) {
+        const map = new Map();
+        for (const block of candidates) {
+            const key = block.fsPath || block.fileName || block.uri;
+            if (!map.has(key)) {
+                map.set(key, {
+                    fileName: block.fileName || "Untitled",
+                    blocks: []
+                });
+            }
+            map.get(key).blocks.push(block);
+        }
+        for (const value of map.values()) {
+            value.blocks.sort((a, b) => a.line - b.line);
+            groups.push(value);
+        }
+        groups.sort((a, b) => a.fileName.localeCompare(b.fileName));
+    } else {
+        groups.push({
+            fileName: null,
+            blocks: candidates.sort((a, b) => a.line - b.line)
+        });
+    }
+    return groups;
+}
+
+function getVisibleBlocks() {
+    const candidates = getBlockCandidates();
+    const groups = buildBlockGroups(candidates);
+    const ordered = [];
+    groups.forEach(group => {
+        group.blocks.forEach(block => {
+            ordered.push(block);
+        });
+    });
+    return { groups, ordered };
+}
+
+function getSelectedItemsInOrder() {
+    const { ordered } = getVisibleBlocks();
+    return ordered.filter(block => state.selectedItems.has(getBlockKey(block)));
+}
+
+function toggleItemSelection(block) {
+    const key = getBlockKey(block);
+    if (state.selectedItems.has(key)) {
+        state.selectedItems.delete(key);
+    } else {
+        state.selectedItems.set(key, block);
+    }
+    updateBatchToolbar();
+    renderBlocks();
+}
+
+function toggleBatchSelectionForTag(tag) {
+    const blocks = state.data[tag] || [];
+    if (blocks.length === 0) {
+        return;
+    }
+
+    const keys = blocks.map(block => getBlockKey(block));
+    const allSelected = keys.every(key => state.selectedItems.has(key));
+
+    if (allSelected) {
+        keys.forEach(key => state.selectedItems.delete(key));
+        state.batchSelectedTags.delete(tag);
+    } else {
+        blocks.forEach(block => state.selectedItems.set(getBlockKey(block), block));
+        state.batchSelectedTags.add(tag);
+    }
+
+    updateBatchToolbar();
+    renderBlocks();
+}
+
+function updateBatchToolbar() {
+    if (!state.isEditMode) {
+        batchToolbar.classList.add('hidden');
+        return;
+    }
+
+    batchToolbar.classList.remove('hidden');
+    const count = state.selectedItems.size;
+    batchCount.textContent = `${count} selected`;
+    batchDeleteBtn.disabled = count === 0;
+    batchNewFileBtn.disabled = count === 0;
+
+    if (count === 0) {
+        batchHint.textContent = 'Select tags or items to start.';
+        hideBatchInput();
+    } else {
+        batchHint.textContent = 'Ready to apply batch actions.';
+    }
+}
+
+function hideBatchInput() {
+    batchInputRow.classList.add('hidden');
+    batchInputHint.classList.add('hidden');
+    batchInput.value = '';
+}
+
+function submitBatchInput() {
+    const selectedItems = getSelectedItemsInOrder();
+    if (selectedItems.length === 0) {
+        return;
+    }
+
+    vscode.postMessage({
+        type: 'createFileFromSelection',
+        items: selectedItems.map(item => ({
+            uri: item.uri,
+            line: item.line,
+            text: item.text,
+            level: item.level
+        })),
+        title: batchInput.value.trim()
+    });
+    hideBatchInput();
 }
 
 function renderTags() {
@@ -220,7 +488,7 @@ function renderTags() {
     tagsToRender.forEach(tag => {
         const el = document.createElement('div');
         el.className = 'tag-chip';
-        if (state.selectedTags.has(tag)) {
+        if (!state.isEditMode && state.selectedTags.has(tag)) {
             el.classList.add('selected');
         }
 
@@ -236,6 +504,10 @@ function renderTags() {
         el.style.color = 'var(--vscode-foreground)';
 
         el.addEventListener('click', () => {
+            if (state.isEditMode) {
+                toggleBatchSelectionForTag(tag);
+                return;
+            }
             if (state.isMultiSelect) {
                 // 多选模式：切换选中状态
                 if (state.selectedTags.has(tag)) {
@@ -262,73 +534,19 @@ function renderTags() {
 function renderBlocks() {
     blocksContainer.innerHTML = '';
 
-    // 根据选中情况决定要展示的 block 列表
-    let candidates = [];
-
-    if (state.selectedTags.size === 0) {
-        // 没有选中标签时，展示当前作用域内的所有 block（需要去重）
-        const seen = new Set();
-        for (const tag of Object.keys(state.data)) {
-            const blocks = state.data[tag] || [];
-            for (const block of blocks) {
-                const key = `${block.uri}:${block.line}`;
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    candidates.push(block);
-                }
-            }
+    const { groups, ordered } = getVisibleBlocks();
+    if (ordered.length === 0) {
+        let emptyText = 'No blocks found';
+        if (state.isEditMode) {
+            emptyText = 'No items available';
+        } else if (state.selectedTags.size > 0) {
+            emptyText = 'No blocks found with all selected tags';
         }
-    } else {
-        // Find blocks that have ALL selected tags
-        const selectedArray = Array.from(state.selectedTags);
-
-        // Start with blocks from the first tag
-        // 注意：这里的 state.data[tag] 是一组 blocks
-        candidates = state.data[selectedArray[0]] || [];
-
-        // Intersect with subsequent tags
-        for (let i = 1; i < selectedArray.length; i++) {
-            const nextTagBlocks = state.data[selectedArray[i]] || [];
-            // 我们通过 uri 和 line 唯一标识 block (或者差不多唯一)
-            const nextSet = new Set(nextTagBlocks.map(b => b.uri + ':' + b.line));
-            candidates = candidates.filter(b => nextSet.has(b.uri + ':' + b.line));
-        }
-    }
-
-    if (candidates.length === 0) {
-        const emptyText = state.selectedTags.size = 
-            'No blocks found with all selected tags';
         blocksContainer.innerHTML = `<div class="empty-state">${emptyText}</div>`;
         return;
     }
 
-    // 分组（全局模式下按文件分组）
-    const groups = [];
-    if (state.isGlobal) {
-        const map = new Map();
-        for (const block of candidates) {
-            const key = block.fsPath || block.fileName || block.uri;
-            if (!map.has(key)) {
-                map.set(key, {
-                    fileName: block.fileName || "Untitled",
-                    blocks: []
-                });
-            }
-            map.get(key).blocks.push(block);
-        }
-        for (const value of map.values()) {
-            value.blocks.sort((a, b) => a.line - b.line);
-            groups.push(value);
-        }
-        groups.sort((a, b) => a.fileName.localeCompare(b.fileName));
-    } else {
-        groups.push({
-            fileName: null,
-            blocks: candidates.sort((a, b) => a.line - b.line)
-        });
-    }
-
-    groups.forEach((group, groupIndex) => {
+    groups.forEach((group) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'file-group';
 
@@ -341,14 +559,28 @@ function renderBlocks() {
         }
 
         group.blocks.forEach(block => {
+            const key = getBlockKey(block);
             const el = document.createElement('div');
             el.className = 'block-item';
+            if (state.isEditMode && state.selectedItems.has(key)) {
+                el.classList.add('selected');
+            }
             el.style.borderLeft = `3px solid color-mix(in srgb, ${getColorForBlock(block)} 60%, transparent)`;
+
+            if (state.isEditMode) {
+                const indicator = document.createElement('div');
+                indicator.className = 'select-indicator';
+                indicator.innerHTML = '<span class="codicon codicon-check"></span>';
+                el.appendChild(indicator);
+            }
+
+            const main = document.createElement('div');
+            main.className = 'block-main';
 
             const content = document.createElement('div');
             content.className = 'block-content';
             content.textContent = block.text;
-            el.appendChild(content);
+            main.appendChild(content);
 
             if (block.remark) {
                 const remark = document.createElement('div');
@@ -360,7 +592,7 @@ function renderBlocks() {
                 remarkText.className = 'remark-text';
                 remarkText.textContent = block.remark;
                 remark.appendChild(remarkText);
-                el.appendChild(remark);
+                main.appendChild(remark);
             }
 
             if (block.breadcrumb && block.breadcrumb.length > 1) {
@@ -375,9 +607,11 @@ function renderBlocks() {
                     breadcrumbText.className = 'breadcrumb-text';
                     breadcrumbText.textContent = trail.join(' > ');
                     breadcrumb.appendChild(breadcrumbText);
-                    el.appendChild(breadcrumb);
+                    main.appendChild(breadcrumb);
                 }
             }
+
+            el.appendChild(main);
 
             const actions = document.createElement('div');
             actions.className = 'block-actions';
@@ -452,6 +686,10 @@ function renderBlocks() {
             el.appendChild(actions);
 
             el.addEventListener('click', () => {
+                if (state.isEditMode) {
+                    toggleItemSelection(block);
+                    return;
+                }
                 vscode.postMessage({
                     type: 'openLocation',
                     uri: block.uri,

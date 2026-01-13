@@ -5,7 +5,7 @@ import {
   TagDefinition,
 } from "../services/tagIndexService";
 import * as path from "path";
-import { parseHeadings } from "../providers/parser";
+import { HeadingMatch, parseHeadings } from "../providers/parser";
 import { HeadingNode } from "../providers/headingProvider";
 import {
   extractCommentContent,
@@ -14,6 +14,20 @@ import {
   parseCommentContent,
   updateLineWithComment,
 } from "../utils/tagRemark";
+import { makeSafeFileComponent } from "../utils/subtree";
+
+interface BatchItem {
+  uri: string;
+  line: number;
+  text?: string;
+  level?: number;
+}
+
+interface DocumentIndex {
+  document: vscode.TextDocument;
+  matches: HeadingMatch[];
+  indexByLine: Map<number, number>;
+}
 
 export class TagViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "headingNavigator.tagView";
@@ -126,6 +140,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           await this.removeTagReferences(data.uri, data.line, data.tagNames);
           break;
         }
+        case "batchRemoveTagReferences": {
+          await this.removeTagReferencesBatch(data.items ?? [], data.tagNames);
+          break;
+        }
         case "editTags": {
           await this.editBlock(data.uri, data.line, "headingNavigator.editTags");
           break;
@@ -136,6 +154,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             data.line,
             "headingNavigator.editRemark"
           );
+          break;
+        }
+        case "createFileFromSelection": {
+          await this.createFileFromSelection(data.items ?? [], data.title ?? "");
           break;
         }
       }
@@ -339,7 +361,26 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     <title>Tag View</title>
 </head>
 <body>
-
+    <div id="batch-toolbar" class="batch-toolbar hidden">
+        <div class="batch-row">
+            <div class="batch-summary">
+                <span id="batch-count" class="batch-count">0 selected</span>
+                <span id="batch-hint" class="batch-hint">Select tags or items to start.</span>
+            </div>
+            <div class="batch-actions">
+                <button class="batch-btn" id="batch-delete-btn" title="Remove tag references from selected items">Remove Tags</button>
+                <button class="batch-btn primary" id="batch-newfile-btn" title="Create a new file from selected items">New File</button>
+            </div>
+        </div>
+        <div id="batch-input-row" class="batch-input-row hidden">
+            <input type="text" id="batch-input" class="batch-input" placeholder="Optional title for a new file">
+            <div class="batch-input-actions">
+                <button class="batch-btn" id="batch-input-cancel">Cancel</button>
+                <button class="batch-btn primary" id="batch-input-confirm">Create</button>
+            </div>
+        </div>
+        <div id="batch-input-hint" class="batch-hint hidden">Leave blank to keep original heading levels.</div>
+    </div>
     <div class="header">
         <input type="text" id="search" class="search-box" placeholder="Search tags...">
         <div class="search-controls">
@@ -350,6 +391,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             <button class="toggle-btn" id="select-btn" title="Toggle selection mode">
                 <span class="codicon codicon-list-selection toggle-btn-icon active" id="select-icon-single"></span>
                 <span class="codicon codicon-list-filter toggle-btn-icon" id="select-icon-mult"></span>
+            </button>
+            <button class="toggle-btn" id="edit-btn" title="Toggle edit mode">
+                <span class="codicon codicon-edit toggle-btn-icon active" id="edit-icon-off"></span>
+                <span class="codicon codicon-checklist toggle-btn-icon" id="edit-icon-on"></span>
             </button>
         </div>
     </div>
@@ -367,6 +412,448 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   /**
    * 从指定的文件和行中移除多个标签的引用
    */
+  private async removeTagReferencesBatch(
+    items: BatchItem[],
+    tagNames: string[] = []
+  ): Promise<void> {
+    if (!items || items.length === 0) {
+      return;
+    }
+
+    const uniqueItems = this.dedupeBatchItems(items);
+    const edit = new vscode.WorkspaceEdit();
+    const documentCache = new Map<string, vscode.TextDocument>();
+    let editCount = 0;
+
+    try {
+      // Batch edits per workspace to avoid shifting line indices.
+      for (const item of uniqueItems) {
+        const uri = vscode.Uri.parse(item.uri);
+        const document = await this.getCachedDocument(uri, documentCache);
+        if (item.line < 0 || item.line >= document.lineCount) {
+          continue;
+        }
+
+        const lineText = document.lineAt(item.line).text;
+        const kind = getCommentKindForDocument(document);
+        const commentPart = extractCommentContent(lineText, kind);
+        if (!commentPart) {
+          continue;
+        }
+
+        const { tags, remark } = parseCommentContent(commentPart);
+        const targetTags = tagNames.length > 0 ? tagNames : tags;
+        if (targetTags.length === 0) {
+          continue;
+        }
+
+        const remainingTags = tags.filter((tag) => !targetTags.includes(tag));
+        const remarkTagName = this._tagService.getRemarkName();
+        const { tags: normalizedTags, remark: normalizedRemark } =
+          normalizeTagsAndRemark(remainingTags, remark, remarkTagName, {
+            ensureRemarkTag: false,
+          });
+
+        const newLineText = updateLineWithComment(
+          lineText,
+          kind,
+          normalizedTags,
+          normalizedRemark
+        );
+        if (newLineText === lineText) {
+          continue;
+        }
+
+        edit.replace(
+          uri,
+          new vscode.Range(item.line, 0, item.line + 1, 0),
+          newLineText + "\n"
+        );
+        editCount += 1;
+      }
+
+      if (editCount === 0) {
+        vscode.window.showInformationMessage("No tag references to remove.");
+        return;
+      }
+
+      await vscode.workspace.applyEdit(edit);
+      this._tagService.scanWorkspace();
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to remove tag references: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  private async createFileFromSelection(
+    items: BatchItem[],
+    title: string
+  ): Promise<void> {
+    if (!items || items.length === 0) {
+      return;
+    }
+
+    const activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+      vscode.window.showErrorMessage("No active editor found.");
+      return;
+    }
+
+    const activeDocument = activeEditor.document;
+    if (activeDocument.isUntitled) {
+      vscode.window.showErrorMessage("Save the current file before creating a new file.");
+      return;
+    }
+
+    // Resolve target file type from the active editor.
+    const extension = this.resolveTargetExtension(activeDocument);
+    if (!extension) {
+      vscode.window.showErrorMessage(
+        "Batch file creation supports only Markdown or Typst files."
+      );
+      return;
+    }
+
+    // Preserve view order while removing duplicates.
+    const orderedItems = this.dedupeBatchItems(items);
+    const blocksText = await this.collectBlocksText(orderedItems);
+    if (!blocksText.trim()) {
+      vscode.window.showErrorMessage("No content found for the selected items.");
+      return;
+    }
+
+    const titleText = (title || "").trim();
+    // Prefer configured imports; fall back to the active document preamble.
+    const preamble =
+      extension === ".md"
+        ? this.extractMarkdownFrontMatter(activeDocument)
+        : await this.resolveTypstPreamble(activeDocument);
+    const content = this.composeNewFileContent(
+      preamble,
+      blocksText,
+      titleText,
+      extension === ".md"
+    );
+
+    const dir = path.dirname(activeDocument.uri.fsPath);
+    const baseNameSource = titleText || orderedItems[0]?.text || "batch";
+    const baseName = makeSafeFileComponent(baseNameSource);
+    const filePath = await this.getAvailableFilePath(dir, baseName, extension);
+    const fileUri = vscode.Uri.file(filePath);
+
+    try {
+      await vscode.workspace.fs.writeFile(
+        fileUri,
+        Buffer.from(content, "utf8")
+      );
+      const doc = await vscode.workspace.openTextDocument(fileUri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+      vscode.window.showInformationMessage(
+        `Created new file: ${path.basename(filePath)}`
+      );
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to create file: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  private resolveTargetExtension(
+    document: vscode.TextDocument
+  ): ".md" | ".typ" | null {
+    const ext = path.extname(document.uri.fsPath).toLowerCase();
+    if (ext === ".md" || document.languageId === "markdown") {
+      return ".md";
+    }
+    if (ext === ".typ" || document.languageId === "typst") {
+      return ".typ";
+    }
+    return null;
+  }
+
+  private dedupeBatchItems(items: BatchItem[]): BatchItem[] {
+    const seen = new Set<string>();
+    const result: BatchItem[] = [];
+
+    for (const item of items) {
+      if (!item?.uri || typeof item.line !== "number") {
+        continue;
+      }
+      const key = `${item.uri}:${item.line}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      result.push(item);
+    }
+
+    return result;
+  }
+
+  private async collectBlocksText(items: BatchItem[]): Promise<string> {
+    const parts: string[] = [];
+    const documentCache = new Map<string, DocumentIndex>();
+
+    for (const item of items) {
+      const uri = vscode.Uri.parse(item.uri);
+      const entry = await this.getDocumentIndex(uri, documentCache);
+      const index = entry.indexByLine.get(item.line);
+      if (index === undefined) {
+        continue;
+      }
+
+      // Extract heading text with its subtree until the next same-or-higher level heading.
+      const range = this.getHeadingRange(entry.document, entry.matches, index);
+      const text = entry.document.getText(range).trimEnd();
+      if (text.length > 0) {
+        parts.push(text);
+      }
+    }
+
+    return parts.join("\n\n");
+  }
+
+  private async getDocumentIndex(
+    uri: vscode.Uri,
+    cache: Map<string, DocumentIndex>
+  ): Promise<DocumentIndex> {
+    const key = uri.toString();
+    const cached = cache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const document = await vscode.workspace.openTextDocument(uri);
+    const matches = parseHeadings(document.getText());
+    const indexByLine = new Map<number, number>();
+    matches.forEach((match, index) => {
+      if (!indexByLine.has(match.line)) {
+        indexByLine.set(match.line, index);
+      }
+    });
+
+    const entry: DocumentIndex = { document, matches, indexByLine };
+    cache.set(key, entry);
+    return entry;
+  }
+
+  private getHeadingRange(
+    document: vscode.TextDocument,
+    matches: HeadingMatch[],
+    startIndex: number
+  ): vscode.Range {
+    const current = matches[startIndex];
+    let endLine = document.lineCount;
+
+    // Find the next heading at the same or higher level.
+    for (let index = startIndex + 1; index < matches.length; index++) {
+      const candidate = matches[index];
+      if (candidate.level <= current.level) {
+        endLine = candidate.line;
+        break;
+      }
+    }
+
+    const start = new vscode.Position(current.line, 0);
+    if (document.lineCount === 0) {
+      return new vscode.Range(start, current.range.end);
+    }
+
+    const end =
+      endLine >= document.lineCount
+        ? document.lineAt(document.lineCount - 1).range.end
+        : new vscode.Position(endLine, 0);
+    return new vscode.Range(start, end);
+  }
+
+  private async resolveTypstPreamble(
+    document: vscode.TextDocument
+  ): Promise<string> {
+    // Use shared imports if configured, otherwise extract from the active file.
+    const imports = await this.loadExtraImportsSnippet(document);
+    if (imports.trim().length > 0) {
+      return imports.trimEnd();
+    }
+
+    return this.extractTypstPreamble(document);
+  }
+
+  private async loadExtraImportsSnippet(
+    document: vscode.TextDocument
+  ): Promise<string> {
+    const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
+    const storedPath = (config.get<string>("export.extraImportsFile", "") || "")
+      .trim();
+    if (!storedPath) {
+      return "";
+    }
+
+    const absolutePath = this.resolveImportsAbsolutePath(
+      storedPath,
+      document
+    );
+    try {
+      const data = await vscode.workspace.fs.readFile(
+        vscode.Uri.file(absolutePath)
+      );
+      return Buffer.from(data).toString("utf8");
+    } catch (error) {
+      vscode.window.showWarningMessage(
+        `Failed to read imports file: ${absolutePath}. Falling back to document preamble.`
+      );
+      return "";
+    }
+  }
+
+  private resolveImportsAbsolutePath(
+    storedPath: string,
+    document: vscode.TextDocument
+  ): string {
+    if (path.isAbsolute(storedPath)) {
+      return storedPath;
+    }
+
+    const workspaceFolder =
+      vscode.workspace.getWorkspaceFolder(document.uri) ??
+      vscode.workspace.workspaceFolders?.[0];
+    if (workspaceFolder) {
+      return path.join(workspaceFolder.uri.fsPath, storedPath);
+    }
+
+    return path.join(path.dirname(document.uri.fsPath), storedPath);
+  }
+
+  private extractTypstPreamble(document: vscode.TextDocument): string {
+    // Copy everything before the first heading when possible, then fall back to leading directives.
+    const matches = parseHeadings(document.getText());
+    if (matches.length > 0) {
+      const first = matches[0];
+      const range = new vscode.Range(0, 0, first.line, 0);
+      return document.getText(range).trimEnd();
+    }
+
+    const lines = document.getText().split(/\r?\n/);
+    const collected: string[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) {
+        collected.push(line);
+        continue;
+      }
+
+      if (
+        trimmed.startsWith("//") ||
+        /^#(import|set|show)\b/.test(trimmed)
+      ) {
+        collected.push(line);
+        continue;
+      }
+
+      break;
+    }
+
+    return collected.join("\n").trimEnd();
+  }
+
+  private extractMarkdownFrontMatter(document: vscode.TextDocument): string {
+    const lines = document.getText().split(/\r?\n/);
+    if (lines.length === 0 || lines[0].trim() !== "---") {
+      return "";
+    }
+
+    for (let index = 1; index < lines.length; index += 1) {
+      const trimmed = lines[index].trim();
+      if (trimmed === "---" || trimmed === "...") {
+        return lines.slice(0, index + 1).join("\n").trimEnd();
+      }
+    }
+
+    return "";
+  }
+
+  private composeNewFileContent(
+    preamble: string,
+    blocksText: string,
+    title: string,
+    isMarkdown: boolean
+  ): string {
+    const parts: string[] = [];
+    const normalizedPreamble = preamble.trim();
+    if (normalizedPreamble.length > 0) {
+      parts.push(normalizedPreamble);
+    }
+
+    if (title.trim().length > 0) {
+      parts.push(this.buildHeadingLine(title, isMarkdown));
+    }
+
+    const normalizedBlocks = blocksText.trim();
+    if (normalizedBlocks.length > 0) {
+      parts.push(normalizedBlocks);
+    }
+
+    let combined = parts.join("\n\n");
+    if (!combined.endsWith("\n")) {
+      combined += "\n";
+    }
+    return combined;
+  }
+
+  private buildHeadingLine(title: string, isMarkdown: boolean): string {
+    const cleanTitle = title.trim();
+    if (isMarkdown) {
+      return `# ${cleanTitle}`;
+    }
+    return `= ${cleanTitle}`;
+  }
+
+  private async getAvailableFilePath(
+    dir: string,
+    baseName: string,
+    extension: string
+  ): Promise<string> {
+    const safeBase = baseName && baseName.length > 0 ? baseName : "untitled";
+    let counter = 0;
+
+    while (true) {
+      const suffix = counter === 0 ? "" : `-${counter}`;
+      const candidate = path.join(dir, `${safeBase}${suffix}${extension}`);
+      if (!(await this.fileExists(candidate))) {
+        return candidate;
+      }
+      counter += 1;
+    }
+  }
+
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async getCachedDocument(
+    uri: vscode.Uri,
+    cache: Map<string, vscode.TextDocument>
+  ): Promise<vscode.TextDocument> {
+    const key = uri.toString();
+    const cached = cache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const document = await vscode.workspace.openTextDocument(uri);
+    cache.set(key, document);
+    return document;
+  }
+
   private async removeTagReferences(
     uriStr: string,
     line: number,
