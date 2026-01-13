@@ -395,6 +395,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
                 </button>
             </div>
             <div class="batch-actions">
+                <button class="toggle-btn" id="batch-tag-mode-btn" title="Tag clicks: Select items">
+                    <span class="codicon codicon-list-selection toggle-btn-icon active" id="batch-tag-mode-select"></span>
+                    <span class="codicon codicon-list-filter toggle-btn-icon" id="batch-tag-mode-filter"></span>
+                </button>
                 <button class="batch-icon-btn" id="batch-delete-btn" title="Remove tag references">
                     <span class="codicon codicon-trash"></span>
                 </button>

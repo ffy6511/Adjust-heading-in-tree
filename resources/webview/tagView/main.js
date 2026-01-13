@@ -14,6 +14,7 @@ let state = {
     isGlobal: false,
     isMultiSelect: false,
     isEditMode: false,
+    editTagMode: 'select',
     currentFileName: null,
     maxPinnedDisplay: 6
 };
@@ -28,6 +29,9 @@ const editBtn = document.getElementById('edit-btn');
 const batchToolbar = document.getElementById('batch-toolbar');
 const batchCount = document.getElementById('batch-count');
 const batchSelectAllBtn = document.getElementById('batch-select-all');
+const batchTagModeBtn = document.getElementById('batch-tag-mode-btn');
+const batchTagModeSelectIcon = document.getElementById('batch-tag-mode-select');
+const batchTagModeFilterIcon = document.getElementById('batch-tag-mode-filter');
 const batchDeleteBtn = document.getElementById('batch-delete-btn');
 const batchNewFileBtn = document.getElementById('batch-newfile-btn');
 const batchInputRow = document.getElementById('batch-input-row');
@@ -117,6 +121,10 @@ batchSelectAllBtn.addEventListener('click', () => {
     toggleSelectAll();
 });
 
+batchTagModeBtn.addEventListener('click', () => {
+    toggleTagMode();
+});
+
 batchDeleteBtn.addEventListener('click', () => {
     const selectedItems = getSelectedItemsInOrder();
     if (selectedItems.length === 0) {
@@ -204,6 +212,7 @@ function setEditMode(enabled) {
     } else {
         state.previousSelectedTags = new Set(state.selectedTags);
         state.selectedTags.clear();
+        state.editTagMode = 'select';
     }
     updateEditBtn();
     updateBatchToolbar();
@@ -285,7 +294,7 @@ function getTagNamesForBlock(block) {
 
 function getColorForBlock(block) {
     // 优先使用当前选中的标签颜色
-    if (!state.isEditMode && state.selectedTags.size > 0) {
+    if ((!state.isEditMode || state.editTagMode === 'filter') && state.selectedTags.size > 0) {
         const selected = Array.from(state.selectedTags)[0];
         const def = getTagStyle(selected);
         return resolveColorToken(def?.color);
@@ -300,7 +309,10 @@ function getColorForBlock(block) {
 function getBlockCandidates() {
     let candidates = [];
 
-    if (!state.isEditMode && state.selectedTags.size > 0) {
+    if (
+        (!state.isEditMode || state.editTagMode === 'filter') &&
+        state.selectedTags.size > 0
+    ) {
         const selectedArray = Array.from(state.selectedTags);
         candidates = state.data[selectedArray[0]] || [];
 
@@ -415,15 +427,38 @@ function updateBatchToolbar() {
     batchDeleteBtn.disabled = count === 0;
     batchNewFileBtn.disabled = count === 0;
     updateSelectAllState();
+    updateTagModeButton();
     if (count === 0) {
         hideBatchInput();
     }
 }
 
+function updateTagModeButton() {
+    const isSelect = state.editTagMode === 'select';
+    batchTagModeSelectIcon.classList.toggle('active', isSelect);
+    batchTagModeFilterIcon.classList.toggle('active', !isSelect);
+    batchTagModeBtn.title = isSelect
+        ? 'Tag clicks: Select items'
+        : 'Tag clicks: Filter items';
+}
+
+function toggleTagMode() {
+    state.editTagMode = state.editTagMode === 'select' ? 'filter' : 'select';
+    if (state.editTagMode === 'select') {
+        state.selectedTags.clear();
+    } else {
+        state.batchSelectedTags.clear();
+    }
+    updateBatchToolbar();
+    render();
+}
+
 function updateSelectAllState() {
     const { ordered } = getVisibleBlocks();
     const total = ordered.length;
-    const allSelected = total > 0 && state.selectedItems.size === total;
+    const allSelected = total > 0 && ordered.every(block => {
+        return state.selectedItems.has(getBlockKey(block));
+    });
     batchSelectAllBtn.classList.toggle('checked', allSelected);
     batchSelectAllBtn.disabled = total === 0;
     batchSelectAllBtn.title = allSelected ? 'Clear selection' : 'Select all items';
@@ -525,7 +560,10 @@ function renderTags() {
     tagsToRender.forEach(tag => {
         const el = document.createElement('div');
         el.className = 'tag-chip';
-        if (!state.isEditMode && state.selectedTags.has(tag)) {
+        if (
+            (!state.isEditMode || state.editTagMode === 'filter') &&
+            state.selectedTags.has(tag)
+        ) {
             el.classList.add('selected');
         }
 
@@ -541,7 +579,7 @@ function renderTags() {
         el.style.color = 'var(--vscode-foreground)';
 
         el.addEventListener('click', () => {
-            if (state.isEditMode) {
+            if (state.isEditMode && state.editTagMode === 'select') {
                 toggleBatchSelectionForTag(tag);
                 return;
             }
