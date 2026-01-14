@@ -130,13 +130,17 @@ batchDeleteBtn.addEventListener('click', () => {
     if (selectedItems.length === 0) {
         return;
     }
+    const tagNames = state.editTagMode === 'filter'
+        ? Array.from(state.selectedTags)
+        : Array.from(state.batchSelectedTags);
     vscode.postMessage({
         type: 'batchRemoveTagReferences',
         items: selectedItems.map(item => ({
             uri: item.uri,
-            line: item.line
+            line: item.line,
+            tagName: item.tagName
         })),
-        tagNames: Array.from(state.batchSelectedTags)
+        tagNames: tagNames
     });
 });
 

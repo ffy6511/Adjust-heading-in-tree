@@ -21,6 +21,7 @@ interface BatchItem {
   line: number;
   text?: string;
   level?: number;
+  tagName?: string;
 }
 
 interface DocumentIndex {
@@ -147,7 +148,19 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           break;
         }
         case "batchRemoveTagReferences": {
-          await this.removeTagReferencesBatch(data.items ?? [], data.tagNames);
+          const items = data.items ?? [];
+          if (items.length === 0) {
+            return;
+          }
+          const confirm = await vscode.window.showWarningMessage(
+            `确认批量删除所选 ${items.length} 项的标签引用吗？`,
+            { modal: true },
+            "删除"
+          );
+          if (confirm !== "删除") {
+            return;
+          }
+          await this.removeTagReferencesBatch(items, data.tagNames);
           break;
         }
         case "editTags": {
@@ -237,6 +250,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             uri: b.uri.toString(),
             fsPath: b.uri.fsPath,
             fileName: path.basename(b.uri.fsPath),
+            tagName: tag,
             breadcrumb:
               b.breadcrumb ??
               this._tagService.getBreadcrumb(b.uri, b.line) ??
@@ -460,7 +474,15 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         }
 
         const { tags, remark } = parseCommentContent(commentPart);
-        const targetTags = tagNames.length > 0 ? tagNames : tags;
+        // Prefer explicit tag selection; fall back to the primary tag.
+        let targetTags: string[] = [];
+        if (tagNames.length > 0) {
+          targetTags = tagNames;
+        } else if (item.tagName) {
+          targetTags = [item.tagName];
+        } else if (tags.length > 0) {
+          targetTags = [tags[0]];
+        }
         if (targetTags.length === 0) {
           continue;
         }
