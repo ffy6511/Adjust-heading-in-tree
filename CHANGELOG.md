@@ -1,6 +1,17 @@
 # Changelog
 
-## [0.4.0] - 2025-12-12
+## [0.4.1] - 2026-1-14
+
+### Feat
+
+- Improve batch deletion to target selected tags or fallback primary tags.
+- Keep remark tags aligned with remark content and clear remarks when remark tags are removed.
+
+### Fix
+
+- Fixed duplicate copy issue in batch mode. Avoid copying the same content by checking nesting relationships.
+
+## [0.4.0] - 2026-1-8
 
 ### Feat
 
@@ -77,14 +88,11 @@
 
 - Issues related to Tag deletion, modification, etc
 
-## 🎉[0.3.0] - 2025-11-27
+## [0.3.0] - 2025-11-27
 
 ### Feat
 
-<div align="center">
-  <img src="./resources/imgs/tag_view.png" alt="cover" width="80%">
-</div>
-**Use Tags to organize your files and jump between different chapters or even files with a simple click!**
+- **Use Tags to organize your files and jump between different chapters or even files with a simple click!**
 
 - Launched Tag View and Tag mechanism: allowing users to add 1 or more tags to block/subtree, and view the tag/tag combination of local/global files in the tag;
 - Provide default tags and allow users to create their own tags
@@ -105,10 +113,6 @@
 - Allow users to enter level through the command panel and display the range from the current cursor;
 
 - Build a new toolbar setting panel and adjust the hover display logic. Allow users to customize the toolbar displayed by hover by dragging and dropping.
-
-<div align="center">
-  <img src="./resources/imgs/hover-setting.png" alt="cover" width="50%">
-</div>
 
 ### style
 

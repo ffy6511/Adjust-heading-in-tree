@@ -828,7 +828,7 @@ export class TagDefinitionsPanel {
 
     <div class="remark-section">
         <div class="section-title">Remark Settings</div>
-        <div class="remark-hint">Used when a heading only has a remark without other tags.</div>
+        <div class="remark-hint">Used to mark headings that contain a remark.</div>
         <div class="tag-card">
             <button class="color-btn" id="remarkColorBtn" title="Choose color">
             </button>

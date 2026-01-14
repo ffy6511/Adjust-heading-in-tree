@@ -88,7 +88,7 @@ export function normalizeTagsAndRemark(
   remarkTagName: string,
   options?: { ensureRemarkTag?: boolean }
 ): { tags: string[]; remark?: string } {
-  // Normalize remark/tag relationship; optionally keep auto-adding remark tag.
+  // Normalize remark/tag relationship; optionally add remark tag.
   const ensureRemarkTag = options?.ensureRemarkTag ?? true;
   const uniqueTags: string[] = [];
   for (const tag of tags) {
@@ -107,21 +107,17 @@ export function normalizeTagsAndRemark(
   let normalizedRemark = hasRemark ? remarkValue : undefined;
 
   if (hasRemark) {
-    const otherTags = normalizedTags.filter((tag) => tag !== remarkTagName);
-    if (otherTags.length === 0) {
-      if (ensureRemarkTag && remarkTagName) {
-        normalizedTags = [remarkTagName];
-      } else {
-        normalizedTags = normalizedTags.filter((tag) => tag === remarkTagName);
+    if (ensureRemarkTag && remarkTagName) {
+      if (!normalizedTags.includes(remarkTagName)) {
+        normalizedTags = [...normalizedTags, remarkTagName];
       }
-    } else {
-      normalizedTags = otherTags;
     }
   } else {
     normalizedTags = normalizedTags.filter((tag) => tag !== remarkTagName);
   }
 
-  if (normalizedTags.length === 0) {
+  // Drop remark when remark tag is removed.
+  if (!ensureRemarkTag && !normalizedTags.includes(remarkTagName)) {
     normalizedRemark = undefined;
   }
 

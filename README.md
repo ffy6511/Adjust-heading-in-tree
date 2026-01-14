@@ -20,7 +20,6 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
   <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20260108151419515.png?imageSlim" alt="cover" width="80%">
 </div>
 
-
 - **标题导航与筛选**：侧边栏展示层级树，支持展开/折叠/点击定位，一键控制最大展开层级. 想要深入钻研某一区域?可以选中区域单独展示；
 - **拖拽与同级重排**：拖动标题即可连同子树迁移位置，同级内可用内联按钮或快捷键快速上/下移，保持结构一致；
 - **批量层级调整**：一键整体提升或降低选中标题及其子树的层级；
@@ -42,7 +41,7 @@ Adjust Heading in Tree 是一款针对 Markdown 与 Typst 文档的 VS Code 扩�
   <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20260108151550372.png?imageSlim" alt="cover" width="80%">
 </div>
 
-现在您可以自定义hover到item上的Toolbar,通过拖拽来添加、删除和排序. 构建自己的工作区!
+现在您可以自定义 hover 到 item 上的 Toolbar,通过拖拽来添加、删除和排序. 构建自己的工作区!
 
 ### 使用快捷键快捷操作
 
@@ -72,7 +71,6 @@ Adjust Heading in Tree is a VS Code extension for Markdown and Typst documents. 
   <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20260108151419515.png?imageSlim" alt="cover" width="80%">
 </div>
 
-
 - **Navigation & filtering**: Sidebar tree for Markdown `#` and Typst `=` with expand/collapse/jump, max-depth control, and quick filters to subtree or ancestor scopes.
 - **Drag and reorder**: Drag a heading to move its entire subtree; reorder siblings via inline buttons or shortcuts.
 - **Batch level shift**: Promote or demote selected headings and their subtrees together.
@@ -93,7 +91,6 @@ Use the panel to set tag names, icons, colors, and display priority.
 <div align="center">
   <img src="https://my-blog-img-1358266118.cos.ap-guangzhou.myqcloud.com/undefined20260108151550372.png?imageSlim" alt="cover" width="80%">
 </div>
-
 
 Customize the hover toolbar shown on items: drag to add, remove, and reorder buttons to build your workspace.
 
