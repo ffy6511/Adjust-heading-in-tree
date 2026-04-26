@@ -48,7 +48,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "echo 'no lint task yet'",
-    "test": "echo 'no tests yet'",
+    "test": "npm run compile && node test/parser-next-line.test.js",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {

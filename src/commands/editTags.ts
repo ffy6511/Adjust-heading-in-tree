@@ -2,7 +2,10 @@ import * as vscode from "vscode";
 import { HeadingNode, HeadingProvider } from "../providers/headingProvider";
 import { TagIndexService, TagDefinition } from "../services/tagIndexService";
 import { parseHeadings } from "../providers/parser";
-import { normalizeTagsAndRemark, updateLineWithComment } from "../utils/tagRemark";
+import {
+  createHeadingCommentReplacement,
+  normalizeTagsAndRemark,
+} from "../utils/tagRemark";
 
 /**
  * 验证标签名称是否合法（允许中文字符、标点符号，只要不是空格就行）
@@ -19,7 +22,7 @@ function validateTagName(name: string): string | null {
 
 export function registerEditTagsCommand(
   headingProvider: HeadingProvider,
-  treeView: vscode.TreeView<HeadingNode>
+  treeView: vscode.TreeView<HeadingNode>,
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
     "headingNavigator.editTags",
@@ -39,7 +42,7 @@ export function registerEditTagsCommand(
 
       if (!targetNode) {
         vscode.window.showInformationMessage(
-          "No heading selected or found at cursor."
+          "No heading selected or found at cursor.",
         );
         return;
       }
@@ -51,17 +54,18 @@ export function registerEditTagsCommand(
 
       const doc = editor.document;
       const lineIndex = targetNode.range.start.line;
-      const lineText = doc.lineAt(lineIndex).text;
 
-      const matches = parseHeadings(lineText);
-      if (matches.length === 0) {
+      const match = parseHeadings(doc.getText()).find(
+        (item) => item.line === lineIndex,
+      );
+      if (!match) {
         vscode.window.showErrorMessage(
-          "Could not parse heading at line " + (lineIndex + 1)
+          "Could not parse heading at line " + (lineIndex + 1),
         );
         return;
       }
 
-      const currentTags = matches[0].tags || [];
+      const currentTags = match.tags || [];
       const tagService = TagIndexService.getInstance();
       const allTagNames = tagService.getAllTags();
       const tagDefinitions = tagService.getTagsFromSettings();
@@ -70,9 +74,9 @@ export function registerEditTagsCommand(
         targetNode,
         currentTags,
         allTagNames,
-        tagDefinitions
+        tagDefinitions,
       );
-    }
+    },
   );
 }
 
@@ -80,7 +84,7 @@ async function handleQuickPickWithCreate(
   node: HeadingNode,
   currentTags: string[],
   allTags: string[],
-  defs: TagDefinition[]
+  defs: TagDefinition[],
 ) {
   const quickPick = vscode.window.createQuickPick();
   quickPick.canSelectMany = true;
@@ -157,14 +161,14 @@ async function handleQuickPickWithCreate(
 
     // Re-apply selection based on our tracked state
     const selectedItems = quickPick.items.filter((i) =>
-      pickedTags.has(i.label)
+      pickedTags.has(i.label),
     );
 
     // If there are no existing selections and there's a "Create new tag" option,
     // automatically select it for better user experience
     if (selectedItems.length === 0 && value && finalItems.length > 0) {
       const createItem = finalItems.find(
-        (item) => item.description === "Create new tag"
+        (item) => item.description === "Create new tag",
       );
       if (createItem) {
         selectedItems.push(createItem);
@@ -186,7 +190,7 @@ async function handleQuickPickWithCreate(
     // 验证新标签名的合法性
     const selectedItems = quickPick.selectedItems;
     const newTagItem = selectedItems.find(
-      (item) => item.description === "Create new tag"
+      (item) => item.description === "Create new tag",
     );
     if (newTagItem) {
       const validationError = validateTagName(newTagItem.label);
@@ -212,45 +216,45 @@ async function handleQuickPickWithCreate(
 async function applyTags(
   node: HeadingNode,
   tags: string[],
-  allTagNames: string[]
+  allTagNames: string[],
 ) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
 
   const doc = editor.document;
   const lineIndex = node.range.start.line;
-  const lineText = doc.lineAt(lineIndex).text;
-  const matches = parseHeadings(lineText);
-  const existingRemark = matches[0]?.remark;
+  const match = parseHeadings(doc.getText()).find(
+    (item) => item.line === lineIndex,
+  );
+  const existingRemark = match?.remark;
 
   const remarkTagName = TagIndexService.getInstance().getRemarkName();
   const { tags: normalizedTags, remark: normalizedRemark } =
     normalizeTagsAndRemark(tags, existingRemark, remarkTagName, {
       ensureRemarkTag: false,
     });
-  const newLineText = updateLineWithComment(
-    lineText,
+  const replacement = createHeadingCommentReplacement(
+    doc,
+    lineIndex,
     node.kind,
     normalizedTags,
-    normalizedRemark
+    normalizedRemark,
   );
 
-  if (newLineText !== lineText) {
-    const edit = new vscode.WorkspaceEdit();
-    edit.replace(doc.uri, doc.lineAt(lineIndex).range, newLineText);
-    await vscode.workspace.applyEdit(edit);
+  const edit = new vscode.WorkspaceEdit();
+  edit.replace(doc.uri, replacement.range, replacement.text);
+  await vscode.workspace.applyEdit(edit);
 
-    // 立即注册新标签到设置中（使用默认图标"tag"）
-    const tagService = TagIndexService.getInstance();
-    // 等待文档更新，然后手动注册新标签
-    setTimeout(async () => {
-      await tagService.autoRegisterTagsForDocument(doc);
+  // 立即注册新标签到设置中（使用默认图标"tag"）
+  const tagService = TagIndexService.getInstance();
+  // 等待文档更新，然后手动注册新标签
+  setTimeout(async () => {
+    await tagService.autoRegisterTagsForDocument(doc);
 
-      // 强制刷新相关的view，确保新标签及其图标显示
-      setTimeout(() => {
-        // 触发tagService的事件，让所有监听器更新
-        tagService.scanWorkspace();
-      }, 50);
-    }, 100);
-  }
+    // 强制刷新相关的view，确保新标签及其图标显示
+    setTimeout(() => {
+      // 触发tagService的事件，让所有监听器更新
+      tagService.scanWorkspace();
+    }, 50);
+  }, 100);
 }

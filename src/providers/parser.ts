@@ -1,6 +1,9 @@
 import { Position, Range } from "vscode";
 import { sanitizeHeadingForDisplay } from "../utils/headingDisplay";
-import { parseCommentContent } from "../utils/tagRemark";
+import {
+  extractStandaloneCommentContent,
+  parseCommentContent,
+} from "../utils/tagRemark";
 
 export type HeadingKind = "markdown" | "typst";
 
@@ -51,7 +54,15 @@ export function parseHeadings(content: string): HeadingMatch[] {
 
     if (markdownResult) {
       const [, hashes, rawText] = markdownResult;
-      const { text, tags, remark } = parseMarkdownTags(rawText);
+      const inline = parseMarkdownTags(rawText);
+      const nextLineComment = parseNextLineComment(
+        lines,
+        lineNumber,
+        "markdown",
+      );
+      const { text } = inline;
+      const tags = nextLineComment?.tags ?? inline.tags;
+      const remark = nextLineComment?.remark ?? inline.remark;
       const displayText = sanitizeHeadingForDisplay(text, "markdown");
       matches.push(
         makeMatch(
@@ -62,15 +73,18 @@ export function parseHeadings(content: string): HeadingMatch[] {
           displayText,
           line.length,
           tags,
-          remark
-        )
+          remark,
+        ),
       );
       continue;
     }
 
     const typstResult = parseTypstHeading(line);
     if (typstResult) {
-      const { level, text, tags, remark } = typstResult;
+      const nextLineComment = parseNextLineComment(lines, lineNumber, "typst");
+      const { level, text } = typstResult;
+      const tags = nextLineComment?.tags ?? typstResult.tags;
+      const remark = nextLineComment?.remark ?? typstResult.remark;
       const displayText = sanitizeHeadingForDisplay(text, "typst");
       matches.push(
         makeMatch(
@@ -81,13 +95,22 @@ export function parseHeadings(content: string): HeadingMatch[] {
           displayText,
           line.length,
           tags,
-          remark
-        )
+          remark,
+        ),
       );
     }
   }
 
   return matches;
+}
+
+function parseNextLineComment(
+  lines: readonly string[],
+  lineNumber: number,
+  kind: HeadingKind,
+): { tags: string[]; remark?: string } | undefined {
+  const comment = extractStandaloneCommentContent(lines[lineNumber + 1], kind);
+  return comment === undefined ? undefined : parseCommentContent(comment);
 }
 
 interface FenceState {
@@ -191,8 +214,10 @@ function parseMarkdownTags(rawText: string): {
 }
 
 function parseTypstHeading(
-  line: string
-): { level: number; text: string; tags: string[]; remark?: string } | undefined {
+  line: string,
+):
+  | { level: number; text: string; tags: string[]; remark?: string }
+  | undefined {
   const match = typstHeading.exec(line);
   if (!match) {
     return undefined;
@@ -227,7 +252,7 @@ function makeMatch(
   displayText: string,
   lineLength: number,
   tags: string[],
-  remark?: string
+  remark?: string,
 ): HeadingMatch {
   const start = new Position(line, 0);
   const end = new Position(line, lineLength);

@@ -1,12 +1,11 @@
 import * as vscode from "vscode";
 import { TagIndexService, TagDefinition } from "../services/tagIndexService";
 import { COMMON_ICONS } from "../constants/tagIcons";
+import { parseHeadings } from "../providers/parser";
 import {
-  extractCommentContent,
+  createHeadingCommentReplacement,
   getCommentKindForDocument,
   normalizeTagsAndRemark,
-  parseCommentContent,
-  updateLineWithComment,
 } from "../utils/tagRemark";
 
 export class TagDefinitionsPanel {
@@ -21,7 +20,7 @@ export class TagDefinitionsPanel {
   private constructor(
     panel: vscode.WebviewPanel,
     extensionUri: vscode.Uri,
-    tagService: TagIndexService
+    tagService: TagIndexService,
   ) {
     this._panel = panel;
     this._extensionUri = extensionUri;
@@ -37,7 +36,7 @@ export class TagDefinitionsPanel {
         if (e.affectsConfiguration("adjustHeadingInTree.tags")) {
           await this._sendDefinitions();
         }
-      })
+      }),
     );
     this._panel.webview.html = this._getWebviewContent();
 
@@ -70,7 +69,7 @@ export class TagDefinitionsPanel {
             await this._confirmRename(
               message.definition,
               message.oldName,
-              message.newName
+              message.newName,
             );
             break;
           case "confirmDelete":
@@ -82,13 +81,13 @@ export class TagDefinitionsPanel {
         }
       },
       null,
-      this._disposables
+      this._disposables,
     );
   }
 
   public static createOrShow(
     extensionUri: vscode.Uri,
-    tagService: TagIndexService
+    tagService: TagIndexService,
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -109,13 +108,13 @@ export class TagDefinitionsPanel {
           vscode.Uri.joinPath(extensionUri, "resources"),
           vscode.Uri.joinPath(extensionUri, "node_modules"),
         ],
-      }
+      },
     );
 
     TagDefinitionsPanel.currentPanel = new TagDefinitionsPanel(
       panel,
       extensionUri,
-      tagService
+      tagService,
     );
   }
 
@@ -147,8 +146,8 @@ export class TagDefinitionsPanel {
     if (unpinned.length > 0) {
       vscode.window.showInformationMessage(
         `Pinned tags exceeded limit; automatically unpinned: ${unpinned.join(
-          ", "
-        )}.`
+          ", ",
+        )}.`,
       );
     }
   }
@@ -190,7 +189,7 @@ export class TagDefinitionsPanel {
   private async _ensureRemarkDefinition(): Promise<void> {
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
     const defs = this._normalizeDefinitions(
-      config.get<TagDefinition[]>("tags.definitions", [])
+      config.get<TagDefinition[]>("tags.definitions", []),
     );
     const remarkDef = this._getRemarkDefinition();
     const index = defs.findIndex((def) => def.name === remarkDef.name);
@@ -224,7 +223,7 @@ export class TagDefinitionsPanel {
       await config.update(
         "tags.definitions",
         ordered,
-        vscode.ConfigurationTarget.Global
+        vscode.ConfigurationTarget.Global,
       );
     }
   }
@@ -255,24 +254,24 @@ export class TagDefinitionsPanel {
     const unpinned: string[] = await this._applyPinLimit(
       defs,
       sanitized,
-      config
+      config,
     );
 
     await config.update(
       "tags.maxPinnedDisplay",
       sanitized,
-      vscode.ConfigurationTarget.Global
+      vscode.ConfigurationTarget.Global,
     );
 
     if (unpinned.length > 0) {
       vscode.window.showInformationMessage(
         `Pinned tags exceeded new limit (${sanitized}); automatically unpinned: ${unpinned.join(
-          ", "
-        )}.`
+          ", ",
+        )}.`,
       );
     } else {
       vscode.window.showInformationMessage(
-        `Tag View can display up to ${sanitized} tags without search.`
+        `Tag View can display up to ${sanitized} tags without search.`,
       );
     }
 
@@ -300,7 +299,7 @@ export class TagDefinitionsPanel {
   private async _applyPinLimit(
     defs: TagDefinition[],
     limit: number,
-    config: vscode.WorkspaceConfiguration
+    config: vscode.WorkspaceConfiguration,
   ): Promise<string[]> {
     const pinnedNames = defs.filter((d) => d.pinned).map((d) => d.name);
     const unpinned: string[] = [];
@@ -317,7 +316,7 @@ export class TagDefinitionsPanel {
       await config.update(
         "tags.definitions",
         ordered,
-        vscode.ConfigurationTarget.Global
+        vscode.ConfigurationTarget.Global,
       );
     }
 
@@ -355,7 +354,7 @@ export class TagDefinitionsPanel {
 
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
     const userDefs = this._normalizeDefinitions(
-      config.get<TagDefinition[]>("tags.definitions", [])
+      config.get<TagDefinition[]>("tags.definitions", []),
     );
 
     if (oldName && oldName !== def.name) {
@@ -391,7 +390,7 @@ export class TagDefinitionsPanel {
     // 当开启 Pin 时需要遵守当前配置的上限
     if (willPin && pinnedCount >= maxPinnedDisplay) {
       vscode.window.showErrorMessage(
-        `Pin ${maxPinnedDisplay} tags at most，please unpin one.`
+        `Pin ${maxPinnedDisplay} tags at most，please unpin one.`,
       );
       return;
     }
@@ -420,7 +419,7 @@ export class TagDefinitionsPanel {
     await config.update(
       "tags.definitions",
       orderedDefs,
-      vscode.ConfigurationTarget.Global
+      vscode.ConfigurationTarget.Global,
     );
     this._tagService.scanWorkspace();
     await this._sendDefinitions();
@@ -437,7 +436,7 @@ export class TagDefinitionsPanel {
     const oldName = this._getRemarkName();
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
     const userDefs = this._normalizeDefinitions(
-      config.get<TagDefinition[]>("tags.definitions", [])
+      config.get<TagDefinition[]>("tags.definitions", []),
     );
     const otherDefs = userDefs.filter((d) => d.name !== oldName);
     if (otherDefs.some((d) => d.name === def.name)) {
@@ -459,7 +458,7 @@ export class TagDefinitionsPanel {
     const willPin = remarkDef.pinned && !wasPinned;
     if (willPin && pinnedCount >= maxPinnedDisplay) {
       vscode.window.showErrorMessage(
-        `Pin ${maxPinnedDisplay} tags at most，please unpin one.`
+        `Pin ${maxPinnedDisplay} tags at most，please unpin one.`,
       );
       return;
     }
@@ -470,12 +469,12 @@ export class TagDefinitionsPanel {
       await config.update(
         "tags.remarkName",
         remarkDef.name,
-        vscode.ConfigurationTarget.Global
+        vscode.ConfigurationTarget.Global,
       );
       await config.update(
         "tags.definitions",
         ordered,
-        vscode.ConfigurationTarget.Global
+        vscode.ConfigurationTarget.Global,
       );
     } finally {
       this._suppressTagSync = false;
@@ -510,7 +509,7 @@ export class TagDefinitionsPanel {
       await config.update(
         "tags.definitions",
         userDefs,
-        vscode.ConfigurationTarget.Global
+        vscode.ConfigurationTarget.Global,
       );
     } else {
       // 如果是预设标签，没有在用户配置中，先将其加入用户配置然后再删除
@@ -519,13 +518,13 @@ export class TagDefinitionsPanel {
       await config.update(
         "tags.definitions",
         userDefs,
-        vscode.ConfigurationTarget.Global
+        vscode.ConfigurationTarget.Global,
       );
       userDefs.pop(); // 移除刚刚添加的
       await config.update(
         "tags.definitions",
         userDefs,
-        vscode.ConfigurationTarget.Global
+        vscode.ConfigurationTarget.Global,
       );
     }
 
@@ -565,12 +564,12 @@ export class TagDefinitionsPanel {
   private async _confirmRename(
     definition: TagDefinition,
     oldName: string,
-    newName: string
+    newName: string,
   ) {
     const result = await vscode.window.showWarningMessage(
       `Rename tag from "${oldName}" to "${newName}"?\nThis will update all files using this tag.`,
       { modal: true },
-      "Rename"
+      "Rename",
     );
 
     if (result === "Rename") {
@@ -597,13 +596,13 @@ export class TagDefinitionsPanel {
         `Delete tag "${name}"? Found ${blocks.length} reference(s) in documents.`,
         { modal: true },
         "Delete Definition Only",
-        "Delete Definition and References"
+        "Delete Definition and References",
       );
     } else {
       result = await vscode.window.showWarningMessage(
         `Delete tag "${name}"?`,
         { modal: true },
-        "Delete"
+        "Delete",
       );
       if (result === "Delete") {
         result = "Delete Definition Only";
@@ -643,37 +642,26 @@ export class TagDefinitionsPanel {
           continue;
         }
 
-        // 逐行处理
-        for (let i = 0; i < doc.lineCount; i++) {
-          const line = doc.lineAt(i);
-          const lineText = line.text;
-
-          const commentPart = extractCommentContent(lineText, kind);
-          if (!commentPart) {
+        for (const match of parseHeadings(text)) {
+          if (!match.tags.includes(tagName)) {
             continue;
           }
 
-          const { tags, remark } = parseCommentContent(commentPart);
-          if (!tags.includes(tagName)) {
-            continue;
-          }
-
-          const remainingTags = tags.filter((tag) => tag !== tagName);
+          const remainingTags = match.tags.filter((tag) => tag !== tagName);
           const { tags: normalizedTags, remark: normalizedRemark } =
-            normalizeTagsAndRemark(remainingTags, remark, remarkTagName, {
+            normalizeTagsAndRemark(remainingTags, match.remark, remarkTagName, {
               ensureRemarkTag: false,
             });
-          const newLineText = updateLineWithComment(
-            lineText,
+          const replacement = createHeadingCommentReplacement(
+            doc,
+            match.line,
             kind,
             normalizedTags,
-            normalizedRemark
+            normalizedRemark,
           );
 
-          if (newLineText !== lineText) {
-            edit.replace(fileUri, line.range, newLineText);
-            totalChanged++;
-          }
+          edit.replace(fileUri, replacement.range, replacement.text);
+          totalChanged++;
         }
       } catch (err) {
         console.error(`Error processing file ${fileUri.fsPath}:`, err);
@@ -683,7 +671,7 @@ export class TagDefinitionsPanel {
     if (totalChanged > 0) {
       await vscode.workspace.applyEdit(edit);
       vscode.window.showInformationMessage(
-        `Removed ${totalChanged} tag reference(s) from documents.`
+        `Removed ${totalChanged} tag reference(s) from documents.`,
       );
     }
 
@@ -696,7 +684,7 @@ export class TagDefinitionsPanel {
    */
   private async _renameTagInFiles(
     oldName: string,
-    newName: string
+    newName: string,
   ): Promise<void> {
     const blocks = this._tagService.getBlocksByTag(oldName);
     if (blocks.length === 0) {
@@ -722,36 +710,35 @@ export class TagDefinitionsPanel {
       try {
         const doc = await vscode.workspace.openTextDocument(file.uri);
         const kind = getCommentKindForDocument(doc);
+        const matchesByLine = new Map(
+          parseHeadings(doc.getText()).map((match) => [match.line, match]),
+        );
         for (const lineNum of file.lines) {
-          const line = doc.lineAt(lineNum);
-          const text = line.text;
-          const commentPart = extractCommentContent(text, kind);
-          if (!commentPart) {
+          const match = matchesByLine.get(lineNum);
+          if (!match) {
             continue;
           }
 
-          const { tags, remark } = parseCommentContent(commentPart);
-          if (!tags.includes(oldName)) {
+          if (!match.tags.includes(oldName)) {
             continue;
           }
 
-          const renamedTags = tags.map((tag) =>
-            tag === oldName ? newName : tag
+          const renamedTags = match.tags.map((tag) =>
+            tag === oldName ? newName : tag,
           );
           const { tags: normalizedTags, remark: normalizedRemark } =
-            normalizeTagsAndRemark(renamedTags, remark, remarkTagName, {
+            normalizeTagsAndRemark(renamedTags, match.remark, remarkTagName, {
               ensureRemarkTag: false,
             });
-          const newText = updateLineWithComment(
-            text,
+          const replacement = createHeadingCommentReplacement(
+            doc,
+            lineNum,
             kind,
             normalizedTags,
-            normalizedRemark
+            normalizedRemark,
           );
-          if (newText !== text) {
-            edit.replace(file.uri, line.range, newText);
-            totalChanged++;
-          }
+          edit.replace(file.uri, replacement.range, replacement.text);
+          totalChanged++;
         }
       } catch (e) {
         console.error(`Error processing file ${file.uri.fsPath}:`, e);
@@ -769,7 +756,7 @@ export class TagDefinitionsPanel {
 
     if (totalChanged > 0) {
       vscode.window.showInformationMessage(
-        `Renamed #${oldName} to #${newName} in ${totalChanged} location(s).`
+        `Renamed #${oldName} to #${newName} in ${totalChanged} location(s).`,
       );
       this._tagService.scanWorkspace();
     }
@@ -783,8 +770,8 @@ export class TagDefinitionsPanel {
         "node_modules",
         "@vscode/codicons",
         "dist",
-        "codicon.css"
-      )
+        "codicon.css",
+      ),
     );
 
     const styleUri = this._panel.webview.asWebviewUri(
@@ -793,8 +780,8 @@ export class TagDefinitionsPanel {
         "resources",
         "webview",
         "tagDefinitions",
-        "style.css"
-      )
+        "style.css",
+      ),
     );
 
     const scriptUri = this._panel.webview.asWebviewUri(
@@ -803,8 +790,8 @@ export class TagDefinitionsPanel {
         "resources",
         "webview",
         "tagDefinitions",
-        "main.js"
-      )
+        "main.js",
+      ),
     );
 
     return `<!DOCTYPE html>

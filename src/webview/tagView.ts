@@ -8,11 +8,11 @@ import * as path from "path";
 import { HeadingMatch, parseHeadings } from "../providers/parser";
 import { HeadingNode } from "../providers/headingProvider";
 import {
-  extractCommentContent,
+  createHeadingCommentReplacement,
+  extractHeadingCommentContent,
   getCommentKindForDocument,
   normalizeTagsAndRemark,
   parseCommentContent,
-  updateLineWithComment,
 } from "../utils/tagRemark";
 import { makeSafeFileComponent } from "../utils/subtree";
 
@@ -47,7 +47,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
-    private readonly _tagService: TagIndexService
+    private readonly _tagService: TagIndexService,
   ) {
     // 监听标签更新
     this._tagService.onDidUpdateTags(() => {
@@ -78,7 +78,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     void vscode.commands.executeCommand(
       "setContext",
       "headingNavigator.tagScopeGlobal",
-      this._isGlobalScope
+      this._isGlobalScope,
     );
     this.updateView();
     // 通知 WebView 更新状态
@@ -114,7 +114,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ) {
     this._view = webviewView;
 
@@ -155,7 +155,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           const confirm = await vscode.window.showWarningMessage(
             `确认批量删除所选 ${items.length} 项的标签引用吗？`,
             { modal: true },
-            "删除"
+            "删除",
           );
           if (confirm !== "删除") {
             return;
@@ -164,19 +164,26 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           break;
         }
         case "editTags": {
-          await this.editBlock(data.uri, data.line, "headingNavigator.editTags");
+          await this.editBlock(
+            data.uri,
+            data.line,
+            "headingNavigator.editTags",
+          );
           break;
         }
         case "editRemark": {
           await this.editBlock(
             data.uri,
             data.line,
-            "headingNavigator.editRemark"
+            "headingNavigator.editRemark",
           );
           break;
         }
         case "createFileFromSelection": {
-          await this.createFileFromSelection(data.items ?? [], data.title ?? "");
+          await this.createFileFromSelection(
+            data.items ?? [],
+            data.title ?? "",
+          );
           break;
         }
       }
@@ -215,19 +222,17 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       tags = this._tagService.getAllTags();
       for (const tag of tags) {
         const blocks = this._tagService.getBlocksByTag(tag);
-          payload[tag] = blocks.map((b) => ({
-            text: b.displayText ?? b.text,
-            line: b.line,
-            level: b.level,
-            uri: b.uri.toString(),
-            fsPath: b.uri.fsPath,
-            fileName: path.basename(b.uri.fsPath),
-            breadcrumb:
-              b.breadcrumb ??
-              this._tagService.getBreadcrumb(b.uri, b.line) ??
-              [],
-            remark: b.remark,
-          }));
+        payload[tag] = blocks.map((b) => ({
+          text: b.displayText ?? b.text,
+          line: b.line,
+          level: b.level,
+          uri: b.uri.toString(),
+          fsPath: b.uri.fsPath,
+          fileName: path.basename(b.uri.fsPath),
+          breadcrumb:
+            b.breadcrumb ?? this._tagService.getBreadcrumb(b.uri, b.line) ?? [],
+          remark: b.remark,
+        }));
       }
 
       // Add tagName to blocks for deletion purposes
@@ -281,7 +286,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   private async editBlock(
     uriStr: string,
     line: number,
-    command: "headingNavigator.editTags" | "headingNavigator.editRemark"
+    command: "headingNavigator.editTags" | "headingNavigator.editRemark",
   ): Promise<void> {
     try {
       const uri = vscode.Uri.parse(uriStr);
@@ -291,7 +296,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       const matches = parseHeadings(lineText);
       if (matches.length === 0) {
         vscode.window.showErrorMessage(
-          "Could not parse heading at line " + (line + 1)
+          "Could not parse heading at line " + (line + 1),
         );
         return;
       }
@@ -313,7 +318,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       vscode.window.showErrorMessage(
         `Failed to edit tag: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
   }
@@ -347,8 +352,8 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         "node_modules",
         "@vscode/codicons",
         "dist",
-        "codicon.css"
-      )
+        "codicon.css",
+      ),
     );
 
     const styleUri = webview.asWebviewUri(
@@ -357,8 +362,8 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         "resources",
         "webview",
         "tagView",
-        "style.css"
-      )
+        "style.css",
+      ),
     );
 
     const scriptUri = webview.asWebviewUri(
@@ -367,8 +372,8 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         "resources",
         "webview",
         "tagView",
-        "main.js"
-      )
+        "main.js",
+      ),
     );
 
     return `<!DOCTYPE html>
@@ -446,7 +451,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
    */
   private async removeTagReferencesBatch(
     items: BatchItem[],
-    tagNames: string[] = []
+    tagNames: string[] = [],
   ): Promise<void> {
     if (!items || items.length === 0) {
       return;
@@ -466,9 +471,16 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
           continue;
         }
 
-        const lineText = document.lineAt(item.line).text;
         const kind = getCommentKindForDocument(document);
-        const commentPart = extractCommentContent(lineText, kind);
+        const lines = Array.from(
+          { length: document.lineCount },
+          (_, index) => document.lineAt(index).text,
+        );
+        const commentPart = extractHeadingCommentContent(
+          lines,
+          item.line,
+          kind,
+        );
         if (!commentPart) {
           continue;
         }
@@ -494,21 +506,15 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             ensureRemarkTag: false,
           });
 
-        const newLineText = updateLineWithComment(
-          lineText,
+        const replacement = createHeadingCommentReplacement(
+          document,
+          item.line,
           kind,
           normalizedTags,
-          normalizedRemark
+          normalizedRemark,
         );
-        if (newLineText === lineText) {
-          continue;
-        }
 
-        edit.replace(
-          uri,
-          new vscode.Range(item.line, 0, item.line + 1, 0),
-          newLineText + "\n"
-        );
+        edit.replace(uri, replacement.range, replacement.text);
         editCount += 1;
       }
 
@@ -523,14 +529,14 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       vscode.window.showErrorMessage(
         `Failed to remove tag references: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
   }
 
   private async createFileFromSelection(
     items: BatchItem[],
-    title: string
+    title: string,
   ): Promise<void> {
     if (!items || items.length === 0) {
       return;
@@ -544,7 +550,9 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
     const activeDocument = activeEditor.document;
     if (activeDocument.isUntitled) {
-      vscode.window.showErrorMessage("Save the current file before creating a new file.");
+      vscode.window.showErrorMessage(
+        "Save the current file before creating a new file.",
+      );
       return;
     }
 
@@ -552,7 +560,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     const extension = this.resolveTargetExtension(activeDocument);
     if (!extension) {
       vscode.window.showErrorMessage(
-        "Batch file creation supports only Markdown or Typst files."
+        "Batch file creation supports only Markdown or Typst files.",
       );
       return;
     }
@@ -561,7 +569,9 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     const orderedItems = this.dedupeBatchItems(items);
     const blocksText = await this.collectBlocksText(orderedItems);
     if (!blocksText.trim()) {
-      vscode.window.showErrorMessage("No content found for the selected items.");
+      vscode.window.showErrorMessage(
+        "No content found for the selected items.",
+      );
       return;
     }
 
@@ -575,7 +585,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       preamble,
       blocksText,
       titleText,
-      extension === ".md"
+      extension === ".md",
     );
 
     const dir = path.dirname(activeDocument.uri.fsPath);
@@ -587,24 +597,24 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     try {
       await vscode.workspace.fs.writeFile(
         fileUri,
-        Buffer.from(content, "utf8")
+        Buffer.from(content, "utf8"),
       );
       const doc = await vscode.workspace.openTextDocument(fileUri);
       await vscode.window.showTextDocument(doc, { preview: false });
       vscode.window.showInformationMessage(
-        `Created new file: ${path.basename(filePath)}`
+        `Created new file: ${path.basename(filePath)}`,
       );
     } catch (error) {
       vscode.window.showErrorMessage(
         `Failed to create file: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
   }
 
   private resolveTargetExtension(
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
   ): ".md" | ".typ" | null {
     const ext = path.extname(document.uri.fsPath).toLowerCase();
     if (ext === ".md" || document.languageId === "markdown") {
@@ -685,7 +695,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
   // Skip headings that are fully contained in another selected heading.
   private getNestedSelectionKeys(
-    entriesByDocument: Map<string, SelectedHeadingSlice[]>
+    entriesByDocument: Map<string, SelectedHeadingSlice[]>,
   ): Set<string> {
     const nested = new Set<string>();
 
@@ -718,7 +728,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
   private async getDocumentIndex(
     uri: vscode.Uri,
-    cache: Map<string, DocumentIndex>
+    cache: Map<string, DocumentIndex>,
   ): Promise<DocumentIndex> {
     const key = uri.toString();
     const cached = cache.get(key);
@@ -743,7 +753,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   private getHeadingRange(
     document: vscode.TextDocument,
     matches: HeadingMatch[],
-    startIndex: number
+    startIndex: number,
   ): vscode.Range {
     const current = matches[startIndex];
     let endLine = document.lineCount;
@@ -770,7 +780,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async resolveTypstPreamble(
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
   ): Promise<string> {
     // Use shared imports if configured, otherwise extract from the active file.
     const imports = await this.loadExtraImportsSnippet(document);
@@ -782,27 +792,25 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async loadExtraImportsSnippet(
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
   ): Promise<string> {
     const config = vscode.workspace.getConfiguration("adjustHeadingInTree");
-    const storedPath = (config.get<string>("export.extraImportsFile", "") || "")
-      .trim();
+    const storedPath = (
+      config.get<string>("export.extraImportsFile", "") || ""
+    ).trim();
     if (!storedPath) {
       return "";
     }
 
-    const absolutePath = this.resolveImportsAbsolutePath(
-      storedPath,
-      document
-    );
+    const absolutePath = this.resolveImportsAbsolutePath(storedPath, document);
     try {
       const data = await vscode.workspace.fs.readFile(
-        vscode.Uri.file(absolutePath)
+        vscode.Uri.file(absolutePath),
       );
       return Buffer.from(data).toString("utf8");
     } catch (error) {
       vscode.window.showWarningMessage(
-        `Failed to read imports file: ${absolutePath}. Falling back to document preamble.`
+        `Failed to read imports file: ${absolutePath}. Falling back to document preamble.`,
       );
       return "";
     }
@@ -810,7 +818,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
   private resolveImportsAbsolutePath(
     storedPath: string,
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
   ): string {
     if (path.isAbsolute(storedPath)) {
       return storedPath;
@@ -844,10 +852,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         continue;
       }
 
-      if (
-        trimmed.startsWith("//") ||
-        /^#(import|set|show)\b/.test(trimmed)
-      ) {
+      if (trimmed.startsWith("//") || /^#(import|set|show)\b/.test(trimmed)) {
         collected.push(line);
         continue;
       }
@@ -867,7 +872,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     for (let index = 1; index < lines.length; index += 1) {
       const trimmed = lines[index].trim();
       if (trimmed === "---" || trimmed === "...") {
-        return lines.slice(0, index + 1).join("\n").trimEnd();
+        return lines
+          .slice(0, index + 1)
+          .join("\n")
+          .trimEnd();
       }
     }
 
@@ -878,7 +886,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     preamble: string,
     blocksText: string,
     title: string,
-    isMarkdown: boolean
+    isMarkdown: boolean,
   ): string {
     const parts: string[] = [];
     const normalizedPreamble = preamble.trim();
@@ -913,7 +921,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   private async getAvailableFilePath(
     dir: string,
     baseName: string,
-    extension: string
+    extension: string,
   ): Promise<string> {
     const safeBase = baseName && baseName.length > 0 ? baseName : "untitled";
     let counter = 0;
@@ -939,7 +947,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
 
   private async getCachedDocument(
     uri: vscode.Uri,
-    cache: Map<string, vscode.TextDocument>
+    cache: Map<string, vscode.TextDocument>,
   ): Promise<vscode.TextDocument> {
     const key = uri.toString();
     const cached = cache.get(key);
@@ -955,14 +963,17 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
   private async removeTagReferences(
     uriStr: string,
     line: number,
-    tagNames: string[]
+    tagNames: string[],
   ): Promise<void> {
     try {
       const uri = vscode.Uri.parse(uriStr);
       const document = await vscode.workspace.openTextDocument(uri);
-      const lineText = document.lineAt(line).text;
       const kind = getCommentKindForDocument(document);
-      const commentPart = extractCommentContent(lineText, kind);
+      const lines = Array.from(
+        { length: document.lineCount },
+        (_, index) => document.lineAt(index).text,
+      );
+      const commentPart = extractHeadingCommentContent(lines, line, kind);
       if (!commentPart) {
         throw new Error("No comment found on this line");
       }
@@ -974,20 +985,17 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         normalizeTagsAndRemark(remainingTags, remark, remarkTagName, {
           ensureRemarkTag: false,
         });
-      const newLineText = updateLineWithComment(
-        lineText,
+      const replacement = createHeadingCommentReplacement(
+        document,
+        line,
         kind,
         normalizedTags,
-        normalizedRemark
+        normalizedRemark,
       );
 
       // 应用编辑
       const edit = new vscode.WorkspaceEdit();
-      edit.replace(
-        uri,
-        new vscode.Range(line, 0, line + 1, 0),
-        newLineText + "\n"
-      );
+      edit.replace(uri, replacement.range, replacement.text);
 
       await vscode.workspace.applyEdit(edit);
 
@@ -997,7 +1005,7 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
       vscode.window.showErrorMessage(
         `Failed to remove tags: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
   }
