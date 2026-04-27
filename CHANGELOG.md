@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Feat
+
+- Store heading tag and remark comments on the line below each heading while keeping legacy inline comments parseable.
+- Add a Tag View batch toolbar action to format inline heading comments in the current file.
+
+### Docs
+
+- Document the next-line heading comment format for Markdown and Typst.
+
 ## [0.4.1] - 2026-1-14
 
 ### Feat
