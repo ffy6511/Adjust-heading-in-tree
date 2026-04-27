@@ -32,6 +32,7 @@ const batchSelectAllBtn = document.getElementById('batch-select-all');
 const batchTagModeBtn = document.getElementById('batch-tag-mode-btn');
 const batchTagModeSelectIcon = document.getElementById('batch-tag-mode-select');
 const batchTagModeFilterIcon = document.getElementById('batch-tag-mode-filter');
+const batchFormatCommentsBtn = document.getElementById('batch-format-comments-btn');
 const batchDeleteBtn = document.getElementById('batch-delete-btn');
 const batchNewFileBtn = document.getElementById('batch-newfile-btn');
 const batchInputRow = document.getElementById('batch-input-row');
@@ -123,6 +124,10 @@ batchSelectAllBtn.addEventListener('click', () => {
 
 batchTagModeBtn.addEventListener('click', () => {
     toggleTagMode();
+});
+
+batchFormatCommentsBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'formatCurrentFileHeadingComments' });
 });
 
 batchDeleteBtn.addEventListener('click', () => {

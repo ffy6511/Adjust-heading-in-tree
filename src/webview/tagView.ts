@@ -7,6 +7,7 @@ import {
 import * as path from "path";
 import { HeadingMatch, parseHeadings } from "../providers/parser";
 import { HeadingNode } from "../providers/headingProvider";
+import { formatHeadingInlineComments } from "../utils/headingCommentFormat";
 import {
   createHeadingCommentReplacement,
   extractHeadingCommentContent,
@@ -184,6 +185,10 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
             data.items ?? [],
             data.title ?? "",
           );
+          break;
+        }
+        case "formatCurrentFileHeadingComments": {
+          await this.formatCurrentFileHeadingComments();
           break;
         }
       }
@@ -414,6 +419,9 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
                 </button>
             </div>
             <div class="batch-actions">
+                <button class="batch-icon-btn" id="batch-format-comments-btn" title="Format heading comments in current file">
+                    <span class="codicon codicon-arrow-down"></span>
+                </button>
                 <button class="toggle-btn" id="batch-tag-mode-btn" title="Tag clicks: Select items">
                     <span class="codicon codicon-list-selection toggle-btn-icon active" id="batch-tag-mode-select"></span>
                     <span class="codicon codicon-list-filter toggle-btn-icon" id="batch-tag-mode-filter"></span>
@@ -611,6 +619,54 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
         }`,
       );
     }
+  }
+
+  private async formatCurrentFileHeadingComments(): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showInformationMessage(
+        "Open a Markdown or Typst file first.",
+      );
+      return;
+    }
+
+    const document = editor.document;
+    const kind = getCommentKindForDocument(document);
+    if (
+      kind === "markdown" &&
+      document.languageId !== "markdown" &&
+      !document.uri.fsPath.toLowerCase().endsWith(".md")
+    ) {
+      vscode.window.showInformationMessage(
+        "Heading comment formatting supports Markdown and Typst files.",
+      );
+      return;
+    }
+
+    const result = formatHeadingInlineComments(document.getText(), kind);
+    if (result.changedCount === 0) {
+      vscode.window.showInformationMessage(
+        "No inline heading comments found in the current file.",
+      );
+      return;
+    }
+
+    const edit = new vscode.WorkspaceEdit();
+    const fullRange = new vscode.Range(
+      document.positionAt(0),
+      document.positionAt(document.getText().length),
+    );
+    edit.replace(document.uri, fullRange, result.content);
+    const applied = await vscode.workspace.applyEdit(edit);
+    if (!applied) {
+      vscode.window.showErrorMessage("Failed to format heading comments.");
+      return;
+    }
+
+    this._tagService.scanWorkspace();
+    vscode.window.showInformationMessage(
+      `Formatted ${result.changedCount} heading comment(s) in the current file.`,
+    );
   }
 
   private resolveTargetExtension(
