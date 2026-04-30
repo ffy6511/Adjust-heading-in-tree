@@ -6,6 +6,9 @@ export async function runListCommand(options: {
   json?: boolean;
   interactive?: boolean;
   showPosition?: boolean;
+  tagged?: boolean;
+  tagFilter?: string[];
+  tagOnly?: boolean;
   loadedDocument: LoadedDocument;
 }): Promise<void> {
   const headings = options.loadedDocument.document.orderedNodes.map((node) => ({
@@ -17,6 +20,11 @@ export async function runListCommand(options: {
     remark: node.remark,
     breadcrumb: node.breadcrumb,
   }));
+  const filteredHeadings = filterHeadings(headings, {
+    tagged: options.tagged,
+    tagFilter: options.tagFilter,
+    tagOnly: options.tagOnly,
+  });
 
   if (options.interactive) {
     const selector = await resolveSelector(
@@ -25,7 +33,7 @@ export async function runListCommand(options: {
       options.loadedDocument.document,
     );
     const line = selector.type === "line" ? selector.line : -1;
-    const selected = headings.find((heading) => heading.line === line);
+    const selected = filteredHeadings.find((heading) => heading.line === line);
     if (!selected) {
       throw new Error("Interactive selection did not resolve to a heading");
     }
@@ -44,8 +52,8 @@ export async function runListCommand(options: {
 
   process.stdout.write(
     options.json
-      ? JSON.stringify(headings, null, 2)
-      : formatHeadingsList(headings, {
+      ? JSON.stringify(filteredHeadings, null, 2)
+      : formatHeadingsList(filteredHeadings, {
           showPosition: options.showPosition,
           color: shouldUseColor(),
         }),
@@ -63,4 +71,69 @@ function shouldUseColor(): boolean {
   }
 
   return !!process.stdout.isTTY;
+}
+
+function filterHeadings(
+  headings: Array<{
+    line: number;
+    level: number;
+    kind: string;
+    text: string;
+    tags: string[];
+    remark?: string;
+    breadcrumb: string[];
+  }>,
+  options: {
+    tagged?: boolean;
+    tagFilter?: string[];
+    tagOnly?: boolean;
+  },
+) {
+  const normalizedTags = (options.tagFilter ?? []).filter(Boolean);
+  const filteringByTag = options.tagged || normalizedTags.length > 0;
+  if (!filteringByTag) {
+    return headings;
+  }
+
+  const matched = headings.map((heading) => matchesTagFilter(heading, normalizedTags));
+  if (options.tagOnly) {
+    return headings.filter((_, index) => matched[index]);
+  }
+
+  const visible: typeof headings = [];
+  const activeMatchDepths: number[] = [];
+
+  for (let index = 0; index < headings.length; index++) {
+    const heading = headings[index];
+    const depth = heading.breadcrumb.length;
+    while (
+      activeMatchDepths.length > 0 &&
+      activeMatchDepths[activeMatchDepths.length - 1] >= depth
+    ) {
+      activeMatchDepths.pop();
+    }
+
+    if (matched[index]) {
+      visible.push(heading);
+      activeMatchDepths.push(depth);
+      continue;
+    }
+
+    if (activeMatchDepths.length > 0) {
+      visible.push(heading);
+    }
+  }
+
+  return visible;
+}
+
+function matchesTagFilter(
+  heading: { tags: string[] },
+  normalizedTags: string[],
+): boolean {
+  if (normalizedTags.length === 0) {
+    return heading.tags.length > 0;
+  }
+
+  return normalizedTags.some((tag) => heading.tags.includes(tag));
 }

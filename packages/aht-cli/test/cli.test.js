@@ -87,6 +87,89 @@ test("aht list reuses the same color for headings on the same level", () => {
   assert.equal(colorMatches[0][1], colorMatches[1][1]);
 });
 
+test("aht list --tagged shows tagged headings and their descendants", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-tagged-"));
+  const filePath = path.join(tmpDir, "sample.md");
+  fs.writeFileSync(
+    filePath,
+    [
+      "# Plain",
+      "## Ignore me",
+      "# Tagged",
+      "<!-- #Spark -->",
+      "## Child",
+      "### Grandchild",
+    ].join("\n"),
+  );
+
+  const result = spawnSync(
+    nodeBin,
+    [cliEntry, "list", "--file", filePath, "--tagged"],
+    { encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, /Plain/);
+  assert.match(result.stdout, /Tagged \[Spark\]/);
+  assert.match(result.stdout, /Child/);
+  assert.match(result.stdout, /Grandchild/);
+});
+
+test("aht list --tag filters to a specific tag and keeps descendants by default", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-tag-filter-"));
+  const filePath = path.join(tmpDir, "sample.typ");
+  fs.writeFileSync(
+    filePath,
+    [
+      "= Root",
+      "== Spark Section // #Spark",
+      "==== Spark Child",
+      "== Check Section // #Check",
+      "==== Check Child",
+    ].join("\n"),
+  );
+
+  const result = spawnSync(
+    nodeBin,
+    [cliEntry, "list", "--file", filePath, "--tag", "Spark"],
+    { encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Spark Section \[Spark\]/);
+  assert.match(result.stdout, /Spark Child/);
+  assert.doesNotMatch(result.stdout, /Check Section/);
+  assert.doesNotMatch(result.stdout, /Check Child/);
+});
+
+test("aht list --tag-only hides descendants and shows only matched tag headings", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-tag-only-"));
+  const filePath = path.join(tmpDir, "sample.md");
+  fs.writeFileSync(
+    filePath,
+    [
+      "# Tagged",
+      "<!-- #Spark -->",
+      "## Child",
+      "# Another",
+      "<!-- #Spark -->",
+      "## Nested",
+    ].join("\n"),
+  );
+
+  const result = spawnSync(
+    nodeBin,
+    [cliEntry, "list", "--file", filePath, "--tag", "Spark", "--tag-only"],
+    { encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Tagged \[Spark\]/m);
+  assert.match(result.stdout, /^Another \[Spark\]/m);
+  assert.doesNotMatch(result.stdout, /Child/);
+  assert.doesNotMatch(result.stdout, /Nested/);
+});
+
 test("aht normalize previews without writing by default", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-normalize-"));
   const filePath = path.join(tmpDir, "sample.md");

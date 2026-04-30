@@ -34,36 +34,51 @@ export function formatHeadingsList(
   const lines: string[] = [];
   const colorEnabled = options?.color ?? false;
   const showPosition = options?.showPosition ?? false;
-  const stack: number[] = [];
+  const renderItems = headings.map((heading) => ({
+    heading,
+    depth: 0,
+    parentIndex: -1,
+  }));
+  const stack: Array<{ breadcrumb: string[]; renderIndex: number }> = [];
 
-  for (let index = 0; index < headings.length; index++) {
-    const heading = headings[index];
-    const currentDepth = Math.max(heading.breadcrumb.length - 1, 0);
-    stack.length = currentDepth;
-    const next = headings[index + 1];
-    const nextDepth = next ? Math.max(next.breadcrumb.length - 1, 0) : -1;
-    const hasNextSibling = !!next && nextDepth === currentDepth;
-
-    const indentation = buildIndentation(stack);
-    const branch = currentDepth === 0 ? "" : hasNextSibling ? "├─ " : "└─ ";
-    const label = formatHeadingLabel(heading, { showPosition, colorEnabled });
-    lines.push(`${indentation}${branch}${label}`);
-
-    if (currentDepth > 0) {
-      stack[currentDepth - 1] = hasNextSibling ? 1 : 0;
+  for (let index = 0; index < renderItems.length; index++) {
+    const item = renderItems[index];
+    while (
+      stack.length > 0 &&
+      !isAncestorBreadcrumb(
+        stack[stack.length - 1].breadcrumb,
+        item.heading.breadcrumb,
+      )
+    ) {
+      stack.pop();
     }
+
+    item.depth = stack.length;
+    item.parentIndex = stack.length > 0 ? stack[stack.length - 1].renderIndex : -1;
+    stack.push({ breadcrumb: item.heading.breadcrumb, renderIndex: index });
+  }
+
+  for (let index = 0; index < renderItems.length; index++) {
+    const item = renderItems[index];
+    const nextSiblingIndex = findNextSiblingIndex(renderItems, index);
+    const hasNextSibling = nextSiblingIndex !== -1;
+    const indentGuides = buildIndentGuides(renderItems, index);
+
+    const indentation = buildIndentation(indentGuides);
+    const branch = item.depth === 0 ? "" : hasNextSibling ? "├─ " : "└─ ";
+    const label = formatHeadingLabel(item.heading, { showPosition, colorEnabled });
+    lines.push(`${indentation}${branch}${label}`);
   }
 
   return lines.join("\n");
 }
 
-function buildIndentation(stack: number[]): string {
-  if (stack.length === 0) {
+function buildIndentation(guides: boolean[]): string {
+  if (guides.length === 0) {
     return "";
   }
 
-  return stack
-    .slice(0, -1)
+  return guides
     .map((hasSibling) => (hasSibling ? "│  " : "   "))
     .join("");
 }
@@ -94,4 +109,55 @@ function colorize(text: string, level: number, enabled: boolean): string {
   const palette = [36, 33, 32, 35, 34, 31];
   const color = palette[(Math.max(level, 1) - 1) % palette.length];
   return `\u001b[${color}m${text}\u001b[0m`;
+}
+
+function isAncestorBreadcrumb(
+  maybeAncestor: string[],
+  breadcrumb: string[],
+): boolean {
+  if (maybeAncestor.length >= breadcrumb.length) {
+    return false;
+  }
+
+  return maybeAncestor.every((segment, index) => segment === breadcrumb[index]);
+}
+
+function findNextSiblingIndex(
+  items: Array<{ depth: number; parentIndex: number }>,
+  index: number,
+): number {
+  const current = items[index];
+  for (let candidateIndex = index + 1; candidateIndex < items.length; candidateIndex++) {
+    const candidate = items[candidateIndex];
+    if (candidate.depth < current.depth) {
+      return -1;
+    }
+    if (
+      candidate.depth === current.depth &&
+      candidate.parentIndex === current.parentIndex
+    ) {
+      return candidateIndex;
+    }
+  }
+  return -1;
+}
+
+function buildIndentGuides(
+  items: Array<{ depth: number; parentIndex: number }>,
+  index: number,
+): boolean[] {
+  const guides: boolean[] = [];
+  let currentParentIndex = items[index].parentIndex;
+  const ancestors: number[] = [];
+
+  while (currentParentIndex !== -1) {
+    ancestors.unshift(currentParentIndex);
+    currentParentIndex = items[currentParentIndex].parentIndex;
+  }
+
+  for (const ancestorIndex of ancestors) {
+    guides.push(findNextSiblingIndex(items, ancestorIndex) !== -1);
+  }
+
+  return guides.slice(0, -1);
 }

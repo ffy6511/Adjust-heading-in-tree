@@ -12,6 +12,19 @@ import { runExportCommand } from "./commands/export";
 
 const program = new Command();
 
+function collectTags(
+  value: string,
+  previous: string[] = [],
+): string[] {
+  return [
+    ...previous,
+    ...value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  ];
+}
+
 program
   .name("aht")
   .description("CLI for Adjust Heading in Tree")
@@ -23,12 +36,18 @@ program
   .option("--json")
   .option("--interactive")
   .option("--show-position")
+  .option("--tagged")
+  .option("--tag <name>", "Filter to one or more tags", collectTags, [])
+  .option("--tag-only")
   .action(async (options) => {
     const loadedDocument = await loadDocument(options.file);
     await runListCommand({
       json: options.json,
       interactive: options.interactive,
       showPosition: options.showPosition,
+      tagged: options.tagged,
+      tagFilter: options.tag,
+      tagOnly: options.tagOnly,
       loadedDocument,
     });
   });
