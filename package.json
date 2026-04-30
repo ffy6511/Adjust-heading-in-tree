@@ -43,12 +43,15 @@
     "onView:headingNavigator.headingSearch"
   ],
   "main": "./dist/extension.js",
+  "bin": {
+    "aht": "./dist/cli/index.js"
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "echo 'no lint task yet'",
-    "test": "npm run compile && node test/parser-next-line.test.js",
+    "test": "npm run compile && node test/parser-next-line.test.js && node --test test/phase1.test.js test/phase2.test.js",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {
@@ -701,6 +704,8 @@
     }
   },
   "dependencies": {
-    "@vscode/codicons": "^0.0.43"
+    "@inquirer/prompts": "^8.4.2",
+    "@vscode/codicons": "^0.0.43",
+    "commander": "^14.0.3"
   }
 }
