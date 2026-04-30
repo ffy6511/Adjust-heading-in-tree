@@ -5,8 +5,8 @@ const { buildHomebrewFormula, buildNpmTarballUrl } = require("../scripts/homebre
 
 test("buildNpmTarballUrl derives the npm registry tarball URL for scoped packages", () => {
   assert.equal(
-    buildNpmTarballUrl("@ffy6511/aht-cli", "0.4.2"),
-    "https://registry.npmjs.org/@ffy6511/aht-cli/-/aht-cli-0.4.2.tgz",
+    buildNpmTarballUrl("@jhzhuo/aht-cli", "0.4.2"),
+    "https://registry.npmjs.org/@jhzhuo/aht-cli/-/aht-cli-0.4.2.tgz",
   );
 });
 
@@ -15,7 +15,7 @@ test("buildHomebrewFormula emits a node-based npm install formula", () => {
     className: "AhtCli",
     desc: "CLI for Adjust Heading in Tree",
     homepage: "https://github.com/ffy6511/Adjust-heading-in-tree",
-    url: "https://registry.npmjs.org/@ffy6511/aht-cli/-/aht-cli-0.4.2.tgz",
+    url: "https://registry.npmjs.org/@jhzhuo/aht-cli/-/aht-cli-0.4.2.tgz",
     sha256: "abc123",
     license: "MIT",
   });

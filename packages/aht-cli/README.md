@@ -9,7 +9,7 @@ It lets you inspect and edit Markdown or Typst heading trees without opening the
 Install from npm:
 
 ```bash
-npm install -g @ffy6511/aht-cli
+npm install -g @jhzhuo/aht-cli
 ```
 
 For local development inside this repository:

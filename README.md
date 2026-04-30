@@ -109,6 +109,19 @@ Typst:
    npm link --workspace packages/aht-cli
    ```
 
+安装已发布的 CLI:
+
+```bash
+npm install -g @jhzhuo/aht-cli
+```
+
+或通过 Homebrew:
+
+```bash
+brew tap ffy6511/tap
+brew install aht-cli
+```
+
 常用 CLI 命令:
 
 ```bash
@@ -234,6 +247,19 @@ Common workflow:
    ```bash
    npm link --workspace packages/aht-cli
    ```
+
+Install the published CLI:
+
+```bash
+npm install -g @jhzhuo/aht-cli
+```
+
+Or install it with Homebrew:
+
+```bash
+brew tap ffy6511/tap
+brew install aht-cli
+```
 
 Common CLI commands:
 

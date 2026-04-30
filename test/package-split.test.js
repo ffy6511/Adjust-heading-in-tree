@@ -19,7 +19,7 @@ test("repository contains a dedicated CLI package", () => {
   assert.equal(fs.existsSync(cliPackagePath), true);
 
   const cliPackage = readJson(cliPackagePath);
-  assert.equal(cliPackage.bin.aht, "./dist/index.js");
+  assert.equal(cliPackage.bin.aht, "dist/index.js");
   assert.match(cliPackage.name, /aht-cli/);
 });
 

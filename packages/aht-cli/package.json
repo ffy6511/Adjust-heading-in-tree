@@ -1,10 +1,10 @@
 {
-  "name": "@ffy6511/aht-cli",
+  "name": "@jhzhuo/aht-cli",
   "version": "0.4.2",
   "description": "CLI for Adjust Heading in Tree",
   "license": "MIT",
   "bin": {
-    "aht": "./dist/index.js"
+    "aht": "dist/index.js"
   },
   "files": [
     "dist",
