@@ -73,6 +73,28 @@ Typst:
 
 > 可在 VS Code `Preferences → Keyboard Shortcuts` 中自定义。“TOC Help” 按钮可快速打开对应设置。
 
+## CLI 与 Codex skill
+
+现在仓库同时提供 `aht` CLI 和配套的 `aht-cli` skill，适合在终端或 Codex 中直接批量处理 Markdown / Typst 标题。
+
+安装 CLI:
+
+```bash
+npm install
+npm link
+```
+
+常用命令:
+
+```bash
+aht list --file note.md --json
+aht normalize --file note.md
+aht tags set --file note.md --selector 'text:Alpha' --tags Review --write
+aht move --file note.md --selector 'text:Gamma' --before 'text:Alpha' --write
+```
+
+Typst 子树导出依赖外部 `tinymist` CLI。`aht export` 会先检测是否存在该命令；如果不存在，会提示您先安装。
+
 ## 许可
 
 MIT License
@@ -141,6 +163,28 @@ Customize the hover toolbar shown on items: drag to add, remove, and reorder but
 | Toggle tree visibility | `Ctrl + Shift + T` | `Cmd + Shift + T` |
 
 > All shortcuts can be customized via VS Code `Preferences → Keyboard Shortcuts`. The "TOC Help" command opens the relevant settings instantly.
+
+## CLI and Codex skill
+
+The repository also ships an `aht` CLI plus an `aht-cli` skill for terminal-first and Codex-first heading workflows.
+
+Install the CLI:
+
+```bash
+npm install
+npm link
+```
+
+Common commands:
+
+```bash
+aht list --file note.md --json
+aht normalize --file note.md
+aht tags set --file note.md --selector 'text:Alpha' --tags Review --write
+aht move --file note.md --selector 'text:Gamma' --before 'text:Alpha' --write
+```
+
+Typst subtree export depends on the external `tinymist` CLI. `aht export` checks for it first and prints an install hint if the binary is missing.
 
 ### License
 
