@@ -7,13 +7,15 @@
     "aht": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "tsup",
+    "prepack": "npm run build",
     "test": "npm run build && node --test test/cli.test.js",
     "pack:local": "npm pack"
   },

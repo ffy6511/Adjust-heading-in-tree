@@ -56,9 +56,9 @@
     "lint": "echo 'no lint task yet'",
     "test:extension": "npm run build:extension && node test/parser-next-line.test.js && node --test test/phase1.test.js",
     "test:cli": "npm --workspace packages/aht-cli run test",
-    "test": "npm run test:extension && npm run test:cli && node --test test/package-split.test.js",
-    "pack:cli": "npm --workspace packages/aht-cli run pack:local",
-    "publish:cli": "npm --workspace packages/aht-cli publish --access public",
+    "test": "npm run test:extension && npm run test:cli && node --test test/package-split.test.js test/homebrew-formula.test.js",
+    "pack:cli": "npm run build:cli && npm --workspace packages/aht-cli run pack:local",
+    "publish:cli": "npm run build:cli && npm --workspace packages/aht-cli publish --access public",
     "brew:formula": "node scripts/generate-homebrew-formula.mjs",
     "format": "prettier --write \"src/**/*.ts\""
   },
