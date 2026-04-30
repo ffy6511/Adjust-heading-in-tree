@@ -354,9 +354,9 @@ export class TagViewProvider implements vscode.WebviewViewProvider {
     const codiconsUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this._extensionUri,
-        "node_modules",
-        "@vscode/codicons",
-        "dist",
+        "resources",
+        "vendor",
+        "codicons",
         "codicon.css",
       ),
     );

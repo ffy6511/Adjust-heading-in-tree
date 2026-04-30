@@ -767,9 +767,9 @@ export class TagDefinitionsPanel {
     const codiconsUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         this._extensionUri,
-        "node_modules",
-        "@vscode/codicons",
-        "dist",
+        "resources",
+        "vendor",
+        "codicons",
         "codicon.css",
       ),
     );
