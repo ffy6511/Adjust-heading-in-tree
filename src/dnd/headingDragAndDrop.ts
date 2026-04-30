@@ -1,4 +1,7 @@
 import * as vscode from "vscode";
+import { parseHeadings } from "../core/parser";
+import { computeHeadingBlockRange } from "../core/subtree";
+import { buildHeadingTree } from "../core/tree";
 import { HeadingProvider, HeadingNode } from "../providers/headingProvider";
 
 const TREE_MIME = "application/vnd.code.tree.headingnavigator.headingtree";
@@ -245,29 +248,22 @@ export function computeHeadingRange(
   orderedNodes: HeadingNode[],
   node: HeadingNode,
 ): vscode.Range {
-  const startLine = node.range.start.line;
-  let endLine = document.lineCount - 1;
-
-  for (const candidate of orderedNodes) {
-    if (candidate.range.start.line <= startLine) {
-      continue;
-    }
-
-    if (candidate.level <= node.level) {
-      endLine = candidate.range.start.line - 1;
-      break;
-    }
+  const coreDocument = buildHeadingTree(parseHeadings(document.getText()));
+  const coreNode = coreDocument.nodeByLine.get(node.range.start.line);
+  if (!coreNode) {
+    return node.range;
   }
 
-  if (endLine < startLine) {
-    endLine = startLine;
-  }
-
-  const start = new vscode.Position(startLine, 0);
+  const blockRange = computeHeadingBlockRange(
+    document.getText(),
+    coreDocument,
+    coreNode,
+  );
+  const start = new vscode.Position(blockRange.startLine, 0);
   const end =
-    endLine + 1 < document.lineCount
-      ? new vscode.Position(endLine + 1, 0)
-      : document.lineAt(endLine).range.end;
+    blockRange.endLineExclusive < document.lineCount
+      ? new vscode.Position(blockRange.endLineExclusive, 0)
+      : document.lineAt(document.lineCount - 1).range.end;
 
   return new vscode.Range(start, end);
 }
