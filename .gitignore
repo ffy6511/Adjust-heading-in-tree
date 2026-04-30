@@ -3,4 +3,6 @@ out
 .vscode-test
 *.vsix
 /dist
+/packages/*/dist
+/packages/*/*.tgz
 *.DS_Store

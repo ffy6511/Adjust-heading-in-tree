@@ -1,13 +1,30 @@
-# 排除 node_modules，但保留 @vscode/codicons（webview 中需要使用其 CSS 和字体文件）
+# Exclude node_modules completely. Webview assets are vendored under resources/.
 node_modules/**
-!node_modules/@vscode/
-!node_modules/@vscode/codicons/
-!node_modules/@vscode/codicons/**
-out
-src
-.vscode-test
-.vscode/
+
+# Source, tests, and development-only workspaces are not needed at runtime.
+src/**
+test/**
+packages/**
+scripts/**
+skills/**
+packaging/**
+out/**
+.vscode-test/**
+.vscode/**
+
+# Extension runtime only needs the extension build, not the CLI build or source maps.
+dist/cli/**
+dist/**/*.map
+
+# Repository metadata and local artifacts should not ship in the VSIX.
+.git/**
 .gitignore
+.github/**
+COMMIT.md
+tsconfig.json
+package-lock.json
+resources/.DS_Store
 work_log.md
 initial_plan.md
+*.tgz
 *.vsix

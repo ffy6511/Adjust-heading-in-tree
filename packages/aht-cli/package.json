@@ -1,0 +1,29 @@
+{
+  "name": "@jhzhuo/aht-cli",
+  "version": "0.4.2",
+  "description": "CLI for Adjust Heading in Tree",
+  "license": "MIT",
+  "bin": {
+    "aht": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test test/cli.test.js",
+    "pack:local": "npm pack"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.4.2",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0"
+  }
+}

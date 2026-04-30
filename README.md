@@ -73,6 +73,76 @@ Typst:
 
 > 可在 VS Code `Preferences → Keyboard Shortcuts` 中自定义。“TOC Help” 按钮可快速打开对应设置。
 
+## CLI 与 Codex skill
+
+现在仓库同时维护 VS Code 扩展和独立的 `AHT CLI`，两者共享同一套标题解析与编辑核心逻辑。
+
+常用工作流:
+
+1. 安装依赖:
+
+   ```bash
+   npm install
+   ```
+
+2. 单独构建扩展:
+
+   ```bash
+   npm run build:extension
+   ```
+
+3. 单独构建 CLI:
+
+   ```bash
+   npm run build:cli
+   ```
+
+4. 一次构建全部产物:
+
+   ```bash
+   npm run build:all
+   ```
+
+5. 本地链接 CLI:
+
+   ```bash
+   npm link --workspace packages/aht-cli
+   ```
+
+安装已发布的 CLI:
+
+```bash
+npm install -g @jhzhuo/aht-cli
+```
+
+或通过 Homebrew:
+
+```bash
+brew tap ffy6511/tap
+brew install aht-cli
+```
+
+常用 CLI 命令:
+
+```bash
+aht list --file note.md --json
+aht normalize --file note.md
+aht tags set --file note.md --selector 'text:Alpha' --tags Review --write
+aht move --file note.md --selector 'text:Gamma' --before 'text:Alpha' --write
+```
+
+CLI 分发流程:
+
+```bash
+npm run pack:cli
+npm run publish:cli
+npm run brew:formula
+```
+
+`npm run publish:cli` 会发布 `packages/aht-cli` 这个 npm 包。`npm run brew:formula` 会在发布后根据 npm tarball 生成一个依赖 Node 的 Homebrew formula。
+
+Typst 子树导出依赖外部 `tinymist` CLI。`aht export` 会先检测是否存在该命令；如果不存在，会提示您先安装。
+
 ## 许可
 
 MIT License
@@ -141,6 +211,76 @@ Customize the hover toolbar shown on items: drag to add, remove, and reorder but
 | Toggle tree visibility | `Ctrl + Shift + T` | `Cmd + Shift + T` |
 
 > All shortcuts can be customized via VS Code `Preferences → Keyboard Shortcuts`. The "TOC Help" command opens the relevant settings instantly.
+
+## CLI and Codex skill
+
+The repository now ships both the VS Code extension and a standalone `AHT CLI`, while keeping one shared heading engine.
+
+Common workflow:
+
+1. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Build the extension only:
+
+   ```bash
+   npm run build:extension
+   ```
+
+3. Build the CLI only:
+
+   ```bash
+   npm run build:cli
+   ```
+
+4. Build both artifacts:
+
+   ```bash
+   npm run build:all
+   ```
+
+5. Link the CLI locally:
+
+   ```bash
+   npm link --workspace packages/aht-cli
+   ```
+
+Install the published CLI:
+
+```bash
+npm install -g @jhzhuo/aht-cli
+```
+
+Or install it with Homebrew:
+
+```bash
+brew tap ffy6511/tap
+brew install aht-cli
+```
+
+Common CLI commands:
+
+```bash
+aht list --file note.md --json
+aht normalize --file note.md
+aht tags set --file note.md --selector 'text:Alpha' --tags Review --write
+aht move --file note.md --selector 'text:Gamma' --before 'text:Alpha' --write
+```
+
+CLI distribution flow:
+
+```bash
+npm run pack:cli
+npm run publish:cli
+npm run brew:formula
+```
+
+`npm run publish:cli` publishes the `packages/aht-cli` npm package. `npm run brew:formula` then generates a Node-based Homebrew formula from the published npm tarball.
+
+Typst subtree export depends on the external `tinymist` CLI. `aht export` checks for it first and prints an install hint if the binary is missing.
 
 ### License
 

@@ -2,7 +2,7 @@
   "name": "adjust-heading-in-tree",
   "displayName": "Adjust Heading in Tree",
   "description": "Visual navigation and adjustment for Markdown and Typst headings.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "ffy6511",
   "engines": {
     "vscode": "^1.85.0"
@@ -43,12 +43,23 @@
     "onView:headingNavigator.headingSearch"
   ],
   "main": "./dist/extension.js",
+  "workspaces": [
+    "packages/aht-cli"
+  ],
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run build:extension",
+    "build:extension": "tsc -p ./",
+    "build:cli": "npm --workspace packages/aht-cli run build",
+    "build:all": "npm run build:extension && npm run build:cli",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "echo 'no lint task yet'",
-    "test": "npm run compile && node test/parser-next-line.test.js",
+    "test:extension": "npm run build:extension && node test/parser-next-line.test.js && node --test test/phase1.test.js",
+    "test:cli": "npm --workspace packages/aht-cli run test",
+    "test": "npm run test:extension && npm run test:cli && node --test test/package-split.test.js test/homebrew-formula.test.js",
+    "pack:cli": "npm run build:cli && npm --workspace packages/aht-cli run pack:local",
+    "publish:cli": "npm run build:cli && npm --workspace packages/aht-cli publish --access public",
+    "brew:formula": "node scripts/generate-homebrew-formula.mjs",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {
@@ -699,8 +710,5 @@
         }
       }
     }
-  },
-  "dependencies": {
-    "@vscode/codicons": "^0.0.43"
   }
 }
