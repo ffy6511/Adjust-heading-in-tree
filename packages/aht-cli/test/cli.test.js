@@ -27,6 +27,66 @@ test("aht list --json prints parsed headings", () => {
   assert.deepEqual(payload[2].breadcrumb, ["Alpha", "Beta", "Gamma"]);
 });
 
+test("aht list prints a grouped tree without positions by default", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-tree-"));
+  const filePath = path.join(tmpDir, "sample.typ");
+  fs.writeFileSync(
+    filePath,
+    [
+      "= Root",
+      "==== Child A // #Spark",
+      "==== Child B",
+      "== Section",
+      "==== Nested",
+    ].join("\n"),
+  );
+
+  const result = spawnSync(nodeBin, [cliEntry, "list", "--file", filePath], {
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, /0:1:typst/);
+  assert.match(result.stdout, /Root/);
+  assert.match(result.stdout, /├─ .*Child A/);
+  assert.match(result.stdout, /└─ .*Section/);
+  assert.match(result.stdout, /Spark/);
+});
+
+test("aht list --show-position adds line and level metadata to tree nodes", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-position-"));
+  const filePath = path.join(tmpDir, "sample.md");
+  fs.writeFileSync(filePath, ["# Root", "## Child"].join("\n"));
+
+  const result = spawnSync(
+    nodeBin,
+    [cliEntry, "list", "--file", filePath, "--show-position"],
+    {
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /\[line 0, level 1, markdown\]/);
+  assert.match(result.stdout, /\[line 1, level 2, markdown\]/);
+});
+
+test("aht list reuses the same color for headings on the same level", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-color-"));
+  const filePath = path.join(tmpDir, "sample.md");
+  fs.writeFileSync(filePath, ["# Root", "## Child A", "## Child B"].join("\n"));
+
+  const result = spawnSync(nodeBin, [cliEntry, "list", "--file", filePath], {
+    encoding: "utf8",
+    env: { ...process.env, FORCE_COLOR: "1" },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const colorMatches = [...result.stdout.matchAll(/\x1b\[(\d+)mChild [AB]/g)];
+  assert.equal(colorMatches.length, 2);
+  assert.equal(colorMatches[0][1], colorMatches[1][1]);
+});
+
 test("aht normalize previews without writing by default", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aht-cli-normalize-"));
   const filePath = path.join(tmpDir, "sample.md");

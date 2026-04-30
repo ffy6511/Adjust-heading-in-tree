@@ -5,6 +5,7 @@ import { resolveSelector } from "../io/selectors";
 export async function runListCommand(options: {
   json?: boolean;
   interactive?: boolean;
+  showPosition?: boolean;
   loadedDocument: LoadedDocument;
 }): Promise<void> {
   const headings = options.loadedDocument.document.orderedNodes.map((node) => ({
@@ -30,14 +31,36 @@ export async function runListCommand(options: {
     }
     const payload = [selected];
     process.stdout.write(
-      options.json ? JSON.stringify(payload, null, 2) : formatHeadingsList(payload),
+      options.json
+        ? JSON.stringify(payload, null, 2)
+        : formatHeadingsList(payload, {
+            showPosition: options.showPosition,
+            color: shouldUseColor(),
+          }),
     );
     process.stdout.write("\n");
     return;
   }
 
   process.stdout.write(
-    options.json ? JSON.stringify(headings, null, 2) : formatHeadingsList(headings),
+    options.json
+      ? JSON.stringify(headings, null, 2)
+      : formatHeadingsList(headings, {
+          showPosition: options.showPosition,
+          color: shouldUseColor(),
+        }),
   );
   process.stdout.write("\n");
+}
+
+function shouldUseColor(): boolean {
+  if (process.env.FORCE_COLOR && process.env.FORCE_COLOR !== "0") {
+    return true;
+  }
+
+  if (process.env.NO_COLOR) {
+    return false;
+  }
+
+  return !!process.stdout.isTTY;
 }

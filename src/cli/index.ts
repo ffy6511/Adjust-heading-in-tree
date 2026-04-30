@@ -22,11 +22,13 @@ program
   .requiredOption("--file <path>")
   .option("--json")
   .option("--interactive")
+  .option("--show-position")
   .action(async (options) => {
     const loadedDocument = await loadDocument(options.file);
     await runListCommand({
       json: options.json,
       interactive: options.interactive,
+      showPosition: options.showPosition,
       loadedDocument,
     });
   });
