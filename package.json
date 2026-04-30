@@ -43,15 +43,23 @@
     "onView:headingNavigator.headingSearch"
   ],
   "main": "./dist/extension.js",
-  "bin": {
-    "aht": "./dist/cli/index.js"
-  },
+  "workspaces": [
+    "packages/aht-cli"
+  ],
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run build:extension",
+    "build:extension": "tsc -p ./",
+    "build:cli": "npm --workspace packages/aht-cli run build",
+    "build:all": "npm run build:extension && npm run build:cli",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "echo 'no lint task yet'",
-    "test": "npm run compile && node test/parser-next-line.test.js && node --test test/phase1.test.js test/phase2.test.js",
+    "test:extension": "npm run build:extension && node test/parser-next-line.test.js && node --test test/phase1.test.js",
+    "test:cli": "npm --workspace packages/aht-cli run test",
+    "test": "npm run test:extension && npm run test:cli && node --test test/package-split.test.js",
+    "pack:cli": "npm --workspace packages/aht-cli run pack:local",
+    "publish:cli": "npm --workspace packages/aht-cli publish --access public",
+    "brew:formula": "node scripts/generate-homebrew-formula.mjs",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {
@@ -704,8 +712,6 @@
     }
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.4.2",
-    "@vscode/codicons": "^0.0.43",
-    "commander": "^14.0.3"
+    "@vscode/codicons": "^0.0.43"
   }
 }

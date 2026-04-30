@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const cliEntry = path.join(__dirname, "..", "dist", "cli", "index.js");
+const cliEntry = path.join(__dirname, "..", "dist", "index.js");
 const nodeBin = process.execPath;
 
 test("aht list --json prints parsed headings", () => {
